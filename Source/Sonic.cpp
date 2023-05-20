@@ -379,11 +379,11 @@ HOOK(void, __fastcall, CHudSonicStageUpdateParallel, 0x1098A50, Sonic::CGameObje
 
 	if (!init)
 	{
-		playerContext->m_JumpThrust = CVector(playerContext->m_JumpThrust.x(), 1, playerContext->m_JumpThrust.z());
-		playerContext->m_spParameter->m_scpNode->m_ValueMap[Sonic::Player::ePlayerSpeedParameter_BoostEnableChaosEnergy] = 1000.0f;
+		//playerContext->m_JumpThrust = CVector(playerContext->m_JumpThrust.x(), 1, playerContext->m_JumpThrust.z());
+		/*playerContext->m_spParameter->m_scpNode->m_ValueMap[Sonic::Player::ePlayerSpeedParameter_BoostEnableChaosEnergy] = 1000.0f;
 		playerContext->m_spParameter->m_scpNode->m_ValueMap[Sonic::Player::ePlayerSpeedParameter_AirBoostEnableChaosEnergy] = 1000.0f;
 		playerContext->m_spParameter->m_scpNode->m_ValueMap[Sonic::Player::ePlayerSpeedParameter_EnableHurdleJumpMinVelocity] = 1000.0f;
-		playerContext->m_pSkills = 0;
+		playerContext->m_pSkills = 0;*/
 
 
 	}
@@ -411,6 +411,8 @@ HOOK(void, __fastcall, CHudSonicStageUpdateParallel, 0x1098A50, Sonic::CGameObje
 	RegisterInputs();
 	Particle_Checker();
 	SetPlayerVelocity();
+	if (isGrounded && jumpcount > 0)
+		jumpcount = 0;
 	if (unleashMode && CONTEXT->m_ChaosEnergy > 0)
 	{
 		playerContext->m_ChaosEnergy -= in_rUpdateInfo.DeltaTime * 5;
@@ -603,19 +605,11 @@ HOOK(void, __fastcall, CHudSonicStageUpdateParallel, 0x1098A50, Sonic::CGameObje
 			}
 		}
 	}
+	DebugDrawText::log((std::string("Jump count: ") + std::to_string(jumpcount)).c_str(), 0);
 	if (inputPtr->IsTapped(Sonic::eKeyState_A) && !playingAttack)
 	{
 		isGrounded = false;
-		if (canJump && jumpcount >= 1)
-		{
-			canJump = false;
-			AddJumpThrust(playerContext, true);
-			playerContext->ChangeState("JumpShort");
-			PlayAnim("JumpEvil2");
-		}
-		else if(jumpcount == 0)
-		PlayAnim("JumpEvil1");
-		jumpcount++;
+		
 	}
 
 	timerCombo += in_rUpdateInfo.DeltaTime;
@@ -679,11 +673,45 @@ HOOK(char, __fastcall, XButtonHoming_ChangeToHomingAttack, 0x00DFFE30, CSonicCon
 {
 	return 0;
 }
-HOOK(void, __fastcall, JumpStart, 0x011BEEC0, int This)
+DWORD* GetServiceGameplay(Hedgehog::Base::TSynchronizedPtr<Sonic::CApplicationDocument> doc)
+{
+	uint32_t func = 0x0040EBD0;
+	DWORD* result;
+	__asm
+	{
+		mov     edi, doc
+		add     edi, 34h
+		call func
+		mov     result, eax
+	};
+};
+HOOK(void, __fastcall, Jump_PlayAnimation, 0x01235250, int This)
+{
+	originalJump_PlayAnimation(This);
+	if (GetServiceGameplay(Sonic::CApplicationDocument::GetInstance())[1] == 1)
+	{
+		if (jumpcount == 0)
+		{
+			PlayAnim("JumpEvil1");
+		}
+		else
+		{
+			if (canJump)
+			{
+				canJump = false;
+				AddJumpThrust(Sonic::Player::CPlayerSpeedContext::GetInstance(), true);
+				PlayAnim("JumpEvil2");
+			}
+		}
+		jumpcount++;
+	}
+}
+HOOK(char, __fastcall, JumpStart, 0x01114CB0, int* This)
 {
 	if (playingAttack == true)
-		return;
-	originalJumpStart(This);
+		return 0;
+	auto retu = originalJumpStart(This);
+	return  retu;
 
 }
 HOOK(char, __fastcall, HomingStart, 0x00DC50D0, CSonicContext* This, void* Edx, int a2)
@@ -732,13 +760,13 @@ void evSonic::Install()
 	INSTALL_HOOK(XButtonHoming_ChangeToHomingAttack);
 	INSTALL_HOOK(XButtonInput);
 	INSTALL_HOOK(JumpStart);
+	INSTALL_HOOK(Jump_PlayAnimation);
 	INSTALL_HOOK(MotoraDamage);
 	INSTALL_HOOK(HomingStart);
 	INSTALL_HOOK(CPlayerAddCallback);
 	INSTALL_HOOK(ProcMsgRestartStage);
 	INSTALL_HOOK(CSonicProcMsgDamage);
 	INSTALL_HOOK(CHudSonicStageUpdateParallel);
-	INSTALL_HOOK(SonicStateGrounded);
 	INSTALL_HOOK(HomingBegin);
 	//WRITE_JUMP(0x01232055, 0x01232073);
 	//Unmap stomp
@@ -751,7 +779,8 @@ void evSonic::Install()
 	WRITE_MEMORY(0x015B1ADC, char*, "chr_Sonic_EV");
 	WRITE_MEMORY(0x015B1ACC, char*, "chr_Sonic_EV");*/
 	//Force Jump stuff
-	WRITE_JUMP(0x01114974, 0x0111497B);
+	WRITE_JUMP(0x01114A14, 0x01114A39);
+	WRITE_JUMP(0x01114D95, 0x01114DDA);
 
 	////Unmap boost (use chaos energy as unleashed meter)
 	//WRITE_MEMORY(0x0111BEEC, uint32_t, -1);
@@ -763,17 +792,16 @@ void evSonic::Install()
 	WRITE_JUMP(0x00DC28D9, 0x00DC2946);
 
 	//Replace jump sound with the werehog's
-	WRITE_MEMORY(0x00E57E4E, uint32_t, 42);
 
-	WRITE_JUMP(0x011BEFF4, 0x011BF036);
-	//From Brianuu - Disable squat and sliding
-	WRITE_MEMORY(0xDFF8D5, uint8_t, 0xEB, 0x05);
-	WRITE_MEMORY(0xDFF856, uint8_t, 0xE9, 0x81, 0x00, 0x00, 0x00);
+	//WRITE_JUMP(0x011BEFF4, 0x011BF036);
+	////From Brianuu - Disable squat and sliding
+	//WRITE_MEMORY(0xDFF8D5, uint8_t, 0xEB, 0x05);
+	//WRITE_MEMORY(0xDFF856, uint8_t, 0xE9, 0x81, 0x00, 0x00, 0x00);
 
-	//From Hyper - unmap drift
-	WRITE_MEMORY(0xDF2DFF, uint32_t, -1);
-	WRITE_MEMORY(0xDFF62B, uint32_t, -1);
-	WRITE_MEMORY(0xDFF816, uint32_t, -1);
-	WRITE_MEMORY(0x1119549, uint32_t, -1);
-	WRITE_MEMORY(0x119910D, uint32_t, -1);
+	////From Hyper - unmap drift
+	//WRITE_MEMORY(0xDF2DFF, uint32_t, -1);
+	//WRITE_MEMORY(0xDFF62B, uint32_t, -1);
+	//WRITE_MEMORY(0xDFF816, uint32_t, -1);
+	//WRITE_MEMORY(0x1119549, uint32_t, -1);
+	//WRITE_MEMORY(0x119910D, uint32_t, -1);
 }
