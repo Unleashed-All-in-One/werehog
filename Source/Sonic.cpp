@@ -124,17 +124,17 @@ public:
 		m_spRenderable->BindMatrixNode(m_spMatrixNodeTransform);
 		m_spMatrixNodeTransform->NotifyChanged();
 		m_spMatrixNodeTransform->SetParent(node.get());
-		m_spMatrixNodeTransform->m_Transform.SetPosition(CVector(0,0,0));
+		m_spMatrixNodeTransform->m_Transform.SetPosition(CVector(0, 0, 0));
 		AddRenderable("Object", m_spRenderable, true);
 
 		// Now we set up our havok shape.
-			const CVector railHalfExtents = CVector(1.0f, 1.0f, 1.0f);
+		const CVector railHalfExtents = CVector(1.0f, 1.0f, 1.0f);
 
 		Havok::BoxShape* shapeRail = new Havok::BoxShape(railHalfExtents * 0.5f);
 		AddRigidBody(m_spRigidBody, shapeRail, *pColID_Mystery, m_spMatrixNodeTransform);
 		shapeRail->removeReference();
 
-		
+
 
 
 		// Event collision example
@@ -359,7 +359,7 @@ void CheckForThinPlatform()
 	float* position = (float*)(*(uint32_t*)(result + 16) + 112);
 	const auto playerContext = Sonic::Player::CPlayerSpeedContext::GetInstance();
 	Eigen::Vector4f const rayLeftStart(position[0] - 1, position[1], position[2], 1.0f);
-	Eigen::Vector4f const rayLeftEnd(position[0] - 1, position[1], position[2]-5, 1.0f);
+	Eigen::Vector4f const rayLeftEnd(position[0] - 1, position[1], position[2] - 5, 1.0f);
 	Eigen::Vector4f outNormal;
 	if (Common::fRaycast(rayLeftStart, rayLeftStart, outPos, outNormal, *(uint32_t*)0x1E0AFB4))
 	{
@@ -387,6 +387,7 @@ HOOK(void, __fastcall, CHudSonicStageUpdateParallel, 0x1098A50, Sonic::CGameObje
 
 
 	}
+	isGrounded = playerContext->m_Grounded;
 	/*sonic->m_spParameter->m_scpNode->m_ValueMap.erase(Sonic::Player::ePlayerSpeedParameter_BoostEnableChaosEnergy);
 	sonic->m_spParameter->m_scpNode->m_ValueMap.erase(Sonic::Player::ePlayerSpeedParameter_AirBoostEnableChaosEnergy);*/
 	DebugDrawText::log((std::string("Timer Combo:") + std::to_string(timerCombo)).c_str(), 0);
@@ -464,7 +465,7 @@ HOOK(void, __fastcall, CHudSonicStageUpdateParallel, 0x1098A50, Sonic::CGameObje
 	{
 		comboProgress = 0;
 		Common::SonicContextSetCollision(SonicCollision::TypeSonicSquatKick, false);
-		
+
 	}
 	else
 	{
@@ -475,7 +476,7 @@ HOOK(void, __fastcall, CHudSonicStageUpdateParallel, 0x1098A50, Sonic::CGameObje
 		}
 		if ((timerCombo > 0.1f && comboProgress > 0 || comboProgress == 0) && (timerAttack > timerAttackMax) && currentButtonChain.size() > comboProgress)
 		{
-			if (currentButtonChain[currentButtonChain.size()-1] == eKeyState_X || currentButtonChain[currentButtonChain.size() - 1] == eKeyState_Y || currentButtonChain[currentButtonChain.size() - 1] == eKeyState_A)
+			if (currentButtonChain[currentButtonChain.size() - 1] == eKeyState_X || currentButtonChain[currentButtonChain.size() - 1] == eKeyState_Y || currentButtonChain[currentButtonChain.size() - 1] == eKeyState_A)
 			{
 
 				if (comboProgress == 0)
@@ -491,7 +492,7 @@ HOOK(void, __fastcall, CHudSonicStageUpdateParallel, 0x1098A50, Sonic::CGameObje
 					}
 					if (currentState == WerehogState::Guard)
 						attackName += "Guard_";
-					if(!isGrounded)
+					if (!isGrounded)
 						attackName += "Air_";
 					if (!isGrounded || currentState == WerehogState::Dash)
 					{
@@ -539,91 +540,67 @@ HOOK(void, __fastcall, CHudSonicStageUpdateParallel, 0x1098A50, Sonic::CGameObje
 						}
 					}
 				}
-				
-					if (comboProgress >= 1)
+
+				if (comboProgress >= 1)
+				{
+					switch (currentButtonChain[comboProgress])
 					{
-						switch (currentButtonChain[comboProgress])
+					case eKeyState_X:
+					{
+						for (size_t i = 0; i < XMLParser::attacks.size(); i++)
 						{
-						case eKeyState_X:
-						{
-							for (size_t i = 0; i < XMLParser::attacks.size(); i++)
+							if (lastAttackName == XMLParser::attacks[i].ActionName)
 							{
-								if (lastAttackName == XMLParser::attacks[i].ActionName)
-								{
-									if (XMLParser::attacks[i].KEY__XDown.empty())
-										continue;
-									comboAttackIndex = i;
-									timerCombo = 0;
-									playingAttack = true;
-									ExecuteAttackCommand(XMLParser::attacks[i].KEY__XDown, comboAttackIndex, false);
-									break;
-								}
+								if (XMLParser::attacks[i].KEY__XDown.empty())
+									continue;
+								comboAttackIndex = i;
+								timerCombo = 0;
+								playingAttack = true;
+								ExecuteAttackCommand(XMLParser::attacks[i].KEY__XDown, comboAttackIndex, false);
+								break;
 							}
-							
-							break;
 						}
-						case eKeyState_Y:
-						{
-							for (size_t i = 0; i < XMLParser::attacks.size(); i++)
-							{
-								if (lastAttackName == XMLParser::attacks[i].ActionName)
-								{
-									if (XMLParser::attacks[i].KEY__YDown.empty())
-										continue;
-									comboAttackIndex = i;
-									timerCombo = 0;
-									playingAttack = true;
-									ExecuteAttackCommand(XMLParser::attacks[i].KEY__YDown, comboAttackIndex, false);
-									break;
-								}
-							}
-							break;
-						}
-						case eKeyState_A:
-						{
-							for (size_t i = 0; i < XMLParser::attacks.size(); i++)
-							{
-								if (lastAttackName == XMLParser::attacks[i].ActionName)
-								{
-									if (XMLParser::attacks[i].KEY__ADown.empty())
-										continue;
-									comboAttackIndex = i;
-									timerCombo = 0;
-									playingAttack = true;
-									ExecuteAttackCommand(XMLParser::attacks[i].KEY__ADown, comboAttackIndex, false);
-									break;
-								}
-							}
-							break;
-						}
-						}
+
+						break;
 					}
-				
+					case eKeyState_Y:
+					{
+						for (size_t i = 0; i < XMLParser::attacks.size(); i++)
+						{
+							if (lastAttackName == XMLParser::attacks[i].ActionName)
+							{
+								if (XMLParser::attacks[i].KEY__YDown.empty())
+									continue;
+								comboAttackIndex = i;
+								timerCombo = 0;
+								playingAttack = true;
+								ExecuteAttackCommand(XMLParser::attacks[i].KEY__YDown, comboAttackIndex, false);
+								break;
+							}
+						}
+						break;
+					}
+					case eKeyState_A:
+					{
+						for (size_t i = 0; i < XMLParser::attacks.size(); i++)
+						{
+							if (lastAttackName == XMLParser::attacks[i].ActionName)
+							{
+								if (XMLParser::attacks[i].KEY__ADown.empty())
+									continue;
+								comboAttackIndex = i;
+								timerCombo = 0;
+								playingAttack = true;
+								ExecuteAttackCommand(XMLParser::attacks[i].KEY__ADown, comboAttackIndex, false);
+								break;
+							}
+						}
+						break;
+					}
+					}
+				}
+
 			}
-
-
-
-
-			//int closestAttackIndex = 0;
-			//int closestComboIndex = 0;
-			//bool doneAttack = false;
-			//// Iterate through the attacks and find the closest combo
-			//for (size_t i = 0; i < attacks.size(); ++i)
-			//{
-			//	if (doneAttack) break;
-			//	auto attack = attacks[i];
-
-			//	if (attack.combo[comboProgress] == currentButtonChain[comboProgress]) {
-			//		// Execute the attack command based on the closest combo
-			//		ExecuteAttackCommand(i, comboProgress);
-			//		doneAttack = true;
-			//		comboProgress++;
-			//		timerCombo = 0;
-			//		timerAttackMax = attack.duration[comboProgress-1];
-			//		playerContext->m_MaxVelocity = attack.moveSpeed;
-			//		break;
-			//	}
-			//}
 		}
 	}
 	if (inputPtr->IsTapped(Sonic::eKeyState_A) && !playingAttack)
@@ -631,34 +608,12 @@ HOOK(void, __fastcall, CHudSonicStageUpdateParallel, 0x1098A50, Sonic::CGameObje
 		isGrounded = false;
 		if (canJump && jumpcount >= 1)
 		{
-			//Eigen::Vector3f playerPosition;
-			//Eigen::Quaternionf playerRotation;
-
-			//alignas(16) MsgApplyImpulse message {};
-			////please make this better
-			//message.m_position = playerPosition;
-			//message.m_impulse = playerContext->m_JumpThrust;
-			//message.m_impulseType = ImpulseType::None;
-			//message.m_outOfControl = 0.0f;
-			//message.m_notRelative = false;
-			//message.m_snapPosition = false;
-			//message.m_pathInterpolate = false;
-			//message.m_alwaysMinusOne = -1.0f;
-			//Common::ApplyPlayerApplyImpulse(message);
-			//message.m_position = playerPosition;
-			//message.m_impulse = playerContext->m_JumpThrust;
-			//message.m_impulseType = ImpulseType::None;
-			//message.m_outOfControl = 0.0f;
-			//message.m_notRelative = false;
-			//message.m_snapPosition = false;
-			//message.m_pathInterpolate = false;
-			//message.m_alwaysMinusOne = -1.0f;
-			//Common::ApplyPlayerApplyImpulse(message);
 			canJump = false;
 			AddJumpThrust(playerContext, true);
 			playerContext->ChangeState("JumpShort");
 			PlayAnim("JumpEvil2");
 		}
+		else if(jumpcount == 0)
 		PlayAnim("JumpEvil1");
 		jumpcount++;
 	}
@@ -720,18 +675,18 @@ HOOK(char, __fastcall, XButtonInput, 0x00DFDF20, CSonicContext* This)
 	}
 	return 0;
 }
-HOOK(char, __fastcall, XButtonHoming_ChangeToHomingAttack, 0x00DFFE30, CSonicContext* This,void* Edx, int a2)
+HOOK(char, __fastcall, XButtonHoming_ChangeToHomingAttack, 0x00DFFE30, CSonicContext* This, void* Edx, int a2)
 {
 	return 0;
 }
 HOOK(void, __fastcall, JumpStart, 0x011BEEC0, int This)
 {
-	if (playingAttack == true)	
+	if (playingAttack == true)
 		return;
-		originalJumpStart(This);
-	
+	originalJumpStart(This);
+
 }
-HOOK(char, __fastcall, HomingStart, 0x00DC50D0, CSonicContext* This,void* Edx, int a2)
+HOOK(char, __fastcall, HomingStart, 0x00DC50D0, CSonicContext* This, void* Edx, int a2)
 {
 	return 0;
 }
@@ -788,7 +743,7 @@ void evSonic::Install()
 	//WRITE_JUMP(0x01232055, 0x01232073);
 	//Unmap stomp
 	WRITE_JUMP(0X00DFDD72, 0X00DFDDF4);
-	
+
 	/*WRITE_MEMORY(0x015D71F8, char*, "chr_Sonic_EV");
 	WRITE_MEMORY(0x015EF200, char*, "chr_Sonic_EV");
 	WRITE_MEMORY(0x015D0CB8, char*, "chr_Sonic_EV");
@@ -797,11 +752,15 @@ void evSonic::Install()
 	WRITE_MEMORY(0x015B1ACC, char*, "chr_Sonic_EV");*/
 	//Force Jump stuff
 	WRITE_JUMP(0x01114974, 0x0111497B);
-	//Unmap boost (use chaos energy as unleashed meter)
-	WRITE_MEMORY(0x0111BEEC, uint32_t, -1);
-	WRITE_NOP(0xDFE1C4, 2);
-	WRITE_NOP(0xDFE1D2, 2);
-	WRITE_MEMORY(0x00DF1D91, uint32_t, -1);
+
+	////Unmap boost (use chaos energy as unleashed meter)
+	//WRITE_MEMORY(0x0111BEEC, uint32_t, -1);
+	//WRITE_NOP(0xDFE1C4, 2);
+	//WRITE_NOP(0xDFE1D2, 2);
+	//WRITE_MEMORY(0x00DF1D91, uint32_t, -1);
+
+	//Disable Spindash
+	WRITE_JUMP(0x00DC28D9, 0x00DC2946);
 
 	//Replace jump sound with the werehog's
 	WRITE_MEMORY(0x00E57E4E, uint32_t, 42);
