@@ -1,4 +1,4 @@
-extern "C" __declspec(dllexport) void Init() 
+extern "C" __declspec(dllexport) void Init(ModInfo * modInfo)
 {
 	MessageBoxA(NULL, "", "", 0);
 
@@ -14,6 +14,6 @@ extern "C" __declspec(dllexport) void Init()
 	
 	//ArchivePatcher::Install();
 	CustomAnimationManager::Install();
-	XMLParser::Install();
+	XMLParser::Install(modInfo->CurrentMod->Path);
 	evSonic::Install();
 }

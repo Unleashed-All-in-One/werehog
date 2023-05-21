@@ -49,8 +49,9 @@ struct WerehogAttackNew
 	float EndMotionSpeed;
 	float LandStartFrame;
 	float ActionValidHeightMin;
+	bool IsGravity;
 	ResourceInfo ResourceInfos;
-
+	Motion Werehog_AssociatedMotion;
 	//From the respective attacks tbres files
 
 };
@@ -58,7 +59,7 @@ class XMLParser
 {
 
 public:
-	static void Install();
+	static void Install(const char* path);
 	static std::vector<WerehogAttackNew> attacks;
 	static std::vector<WerehogAttackNew> starterAttacks;
 	static std::vector<Motion> animationTable;

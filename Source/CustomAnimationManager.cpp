@@ -75,7 +75,7 @@ void CustomAnimationManager::RegisterAnimation(std::string stateName, std::strin
         entry.fileName = fileName;
         entry.stateName = stateName;
         CUSTOM_ANIMATIONS.push_back(entry);
-        printf(std::format("Registered animation ({0}, {1})", stateName, fileName).c_str());
+        printf(std::format("\nRegistered animation ({0}, {1})", stateName, fileName).c_str());
     }
 }
 

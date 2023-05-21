@@ -89,49 +89,8 @@ WerehogAttackNew ParseActionNode(rapidxml::xml_node<>* node, rapidxml::xml_node<
 			attack.LandStartFrame = reinterpret_cast<int>(child->value());
 		if (isPartOf(name, "ActionValidHeightMin"))
 			attack.ActionValidHeightMin = reinterpret_cast<int>(child->value());
-
-
-		//printf("\n");
-		//printf(child->name());
-		// const char* name = child->name();
-		// auto e = std::string(name);
-		// trim_cruft(e);
-		// name = e.c_str();
-		////if (isPartOf(name,"ActionName"))
-		////    attack.comboName = child->value();
-		// if (isPartOf(name, "MotionName"))
-		// {
-		//     attack.animations.push_back(format("evilsonic_attack%s", child->value()));
-
-		//     attack.comboName = child->value();
-		//}
-		//if (isPartOf(name, "KEY__YDown"))
-		//{
-		//    if (child->value_size() > 0)
-		//    {
-		//        auto val = child->value();
-		//        attack.animations.push_back(format("evilsonic_attack%s", val));
-		//        toCheck = val;
-		//        alreadyChecked = attack.comboName;
-		//        attack.combo.push_back(eKeyState_Y);
-		//    }
-		//}
-		//if (isPartOf(name, "KEY__XDown"))
-		//{
-		//    if (child->value_size() > 0)
-		//    {
-		//        attack.animations.push_back(format("evilsonic_attack%s", child->value()));
-		//        attack.combo.push_back(eKeyState_X);
-		//    }
-		//}
-		//if (isPartOf(name, "KEY__ADown"))
-		//{
-		//    if (child->value_size() > 0)
-		//    {
-		//        attack.animations.push_back(format("evilsonic_attack%s", child->value()));
-		//        attack.combo.push_back(eKeyState_A);
-		//    }
-		//}
+		if (isPartOf(name, "IsGravity"))
+			attack.IsGravity = child->value() == "true" ? true : false;
 	}
 	return attack;
 }
@@ -154,6 +113,11 @@ Motion ParseMotionNode(rapidxml::xml_node<>* node)
 }
 void RegisterAnims(std::vector<Motion>& vec, rapidxml::xml_node<>* nodeMotion)
 {
+	/// Fun fact!
+	/// Some attacks cannot be converted to the simple evilsonic_attack(name) format, because some have custom
+	/// attack names but not custom animation names.
+	/// At the same time, not every attack is in the MotionFile
+	/// so you have to do both at the same time!!!!
 	for (rapidxml::xml_node<>* child = nodeMotion->first_node(); child; child = child->next_sibling())
 	{
 		auto motionName = child->first_node();
@@ -166,7 +130,6 @@ void RegisterAnims(std::vector<Motion>& vec, rapidxml::xml_node<>* nodeMotion)
 	for (size_t i = 0; i < vec.size(); i++)
 	{
 		auto attack = vec[i];
-		printf((std::string("\n") + std::format("evilsonic_attack{0}", attack.FileName)).c_str());
 		bool foundInMotionList = false;
 		for (size_t i = 0; i < localMotionFileList.size(); i++)
 		{
@@ -204,7 +167,61 @@ void RegisterAnims(std::vector<Motion>& vec, rapidxml::xml_node<>* nodeMotion)
 		
 	}
 }
-void XMLParser::Install()
+void RegisterResources(std::vector<WerehogAttackNew>& vec, std::vector<Motion>& vecM, const char* path)
+{
+	std::string modDir = std::string(path);
+	size_t pos = modDir.find_last_of("\\/");
+	if (pos != std::string::npos)
+	{
+		modDir.erase(pos + 1);
+	}
+	for (size_t i = 0; i < vecM.size(); i++)
+	{
+		WerehogAttackNew* attack;
+		for (size_t a = 0; a < vec.size(); a++)
+		{
+			if (vec[a].MotionName == vecM[i].MotionName)
+			{
+				attack = &vec[a];
+				break;
+			}
+		}
+		std::string filepath = std::format("{0}attack/{1}.tbres.xml", modDir,vecM[i].FileName);
+		FILE* file = fopen(filepath.c_str(), "rb");
+		if (file == nullptr)
+			continue;
+		fseek(file, 0, SEEK_END);
+		long fileSize = ftell(file);
+		fseek(file, 0, SEEK_SET);
+		vector<char> buffer(fileSize);
+		fread(buffer.data(), 1, fileSize, file);
+		rapidxml::xml_document<> doc;
+		buffer.push_back('\0');
+		doc.parse<0>(&buffer[0]);
+		auto resourceNode = doc.first_node()->next_sibling();
+		Resource res;
+		//Add trigger functionality too once everything else is done
+		for (rapidxml::xml_node<>* child = resourceNode->first_node(); child; child = child->next_sibling())
+		{
+			auto resource = child->first_node();
+			auto resourceInsides = resource->first_node();
+			auto name = resourceInsides->name();
+			if (isPartOf(name, "ID"))
+				res.ID = reinterpret_cast<int>(child->value());
+			if (isPartOf(name, "Type"))
+				res.Type = child->value() == "CSB" ? ResourceType::CSB : ResourceType::Effect;
+			if (isPartOf(name, "Param"))
+			{
+				resourceInsides->first_node();
+			}
+		}
+
+		fclose(file);
+	}
+	
+
+}
+void XMLParser::Install(const char* path)
 {
 	std::ifstream myfile("EvilAttackAction1.xml");
 	std::ifstream myfile2("EvilAttackMotionFile.xml");
@@ -240,6 +257,8 @@ void XMLParser::Install()
 	}
 	auto motionStartpoint = doc2.first_node()->first_node();
 	RegisterAnims(XMLParser::animationTable, motionStartpoint);
+
+	//RegisterResources(XMLParser::attacks, XMLParser::animationTable, path);
 	printf("\nParsing Complete");
 
 

@@ -77,9 +77,11 @@ SharedPtrTypeless middleParticle_L, middleParticle_R;
 SharedPtrTypeless pinkyParticle_L, pinkyParticle_R;
 SharedPtrTypeless ringParticle_L, ringParticle_R;
 SharedPtrTypeless thumbParticle_L, thumbParticle_R;
+SharedPtrTypeless punch;
 SharedPtrTypeless shield;
 SharedPtrTypeless berserk[5];
 std::vector<Sonic::EKeyState> currentButtonChain;
+WerehogAttackNew attackCache;
 bool canJump;
 int jumpcount;
 int comboAttackIndex;
@@ -211,7 +213,7 @@ float GetVelocity()
 void RegisterInputs()
 {
 	auto inputPtr = &Sonic::CInputState::GetInstance()->m_PadStates[Sonic::CInputState::GetInstance()->m_CurrentPadStateIndex];
-	if (timerCombo < timerComboMax)
+	if (timerCombo < timerComboMax )
 	{
 		auto state = inputPtr->TappedState;
 		lastTap = inputPtr->DownState;
@@ -248,7 +250,11 @@ void DespawnParticlesHand()
 void SpawnParticleOnHand(const char* glitterName, bool right)
 {
 	const auto playerContext = Sonic::Player::CPlayerSpeedContext::GetInstance();
-	if (right)
+	auto hand = playerContext->m_pPlayer->m_spCharacterModel->GetNode("Hand_R_Reference");
+	if(!punch)
+		Common::fCGlitterCreate(playerContext->m_pPlayer->m_spContext.get(), punch, &hand, "evil_super_s_punch_01", 1);
+
+	/*if (right)
 	{
 		auto index = playerContext->m_pPlayer->m_spCharacterModel->GetNode("Index1_L");
 		auto middle = playerContext->m_pPlayer->m_spCharacterModel->GetNode("Middle1_L");
@@ -283,7 +289,7 @@ void SpawnParticleOnHand(const char* glitterName, bool right)
 			Common::fCGlitterCreate(playerContext->m_pPlayer->m_spContext.get(), ringParticle_R, &ring, glitterName, 1);
 		if (!thumbParticle_R)
 			Common::fCGlitterCreate(playerContext->m_pPlayer->m_spContext.get(), thumbParticle_R, &thumb, glitterName, 1);
-	}
+	}*/
 
 
 
@@ -321,6 +327,60 @@ void ExecuteAttackCommand(std::string attack, int attackIndex, bool starter = fa
 	SpawnParticleOnHand("slash", true);
 	SpawnParticleOnHand("slash", false);
 	timerAttack = 0;
+}
+
+void SearchThenExecute(std::string input, bool starter, Sonic::EKeyState state)
+{
+	if (starter)
+	{
+		for (size_t i = 0; i < XMLParser::starterAttacks.size(); i++)
+		{
+			if (XMLParser::starterAttacks[i].ActionName == input)
+			{
+				if (XMLParser::starterAttacks[i].MotionName.empty())
+					return;
+				comboAttackIndex = i;
+				timerCombo = 0;
+				playingAttack = true;
+				attackCache = XMLParser::starterAttacks[i];
+				ExecuteAttackCommand(XMLParser::starterAttacks[i].MotionName, comboAttackIndex, true);
+				break;
+			}
+		}
+	}
+	else
+	{
+		for (size_t i = 0; i < XMLParser::attacks.size(); i++)
+		{
+			if (input == XMLParser::attacks[i].ActionName)
+			{
+				std::string container;
+				if (state == eKeyState_X)
+					container = XMLParser::attacks[i].KEY__XDown;
+				if (state == eKeyState_Y)
+					container = XMLParser::attacks[i].KEY__YDown;
+				if (state == eKeyState_A)
+					container = XMLParser::attacks[i].KEY__ADown;
+
+				if (container.empty())
+					continue;
+				ExecuteAttackCommand(container, comboAttackIndex, false);
+				for (size_t i = 0; i < XMLParser::attacks.size(); i++)
+				{
+					if (lastAttackName == container)
+					{
+						attackCache = XMLParser::attacks[i];
+						break;
+					}
+				}
+
+				comboAttackIndex = i;
+				timerCombo = 0;
+				playingAttack = true;
+				break;
+			}
+		}
+	}
 }
 void SetPlayerVelocity()
 {
@@ -377,16 +437,22 @@ HOOK(void, __fastcall, CHudSonicStageUpdateParallel, 0x1098A50, Sonic::CGameObje
 	Hedgehog::Base::CSharedString stateCheck = playerContext->m_pPlayer->m_StateMachine.GetCurrentState()->GetStateName();
 	std::string stateCheckS(stateCheck.c_str());
 
-	if (!init)
-	{
-		//playerContext->m_JumpThrust = CVector(playerContext->m_JumpThrust.x(), 1, playerContext->m_JumpThrust.z());
-		/*playerContext->m_spParameter->m_scpNode->m_ValueMap[Sonic::Player::ePlayerSpeedParameter_BoostEnableChaosEnergy] = 1000.0f;
-		playerContext->m_spParameter->m_scpNode->m_ValueMap[Sonic::Player::ePlayerSpeedParameter_AirBoostEnableChaosEnergy] = 1000.0f;
-		playerContext->m_spParameter->m_scpNode->m_ValueMap[Sonic::Player::ePlayerSpeedParameter_EnableHurdleJumpMinVelocity] = 1000.0f;
-		playerContext->m_pSkills = 0;*/
+
+	//playerContext->m_JumpThrust = CVector(playerContext->m_JumpThrust.x(), 1, playerContext->m_JumpThrust.z());
+	playerContext->m_spParameter->m_scpNode->m_ValueMap[Sonic::Player::ePlayerSpeedParameter_BoostEnableChaosEnergy] = 1000.0f;
+	float rotForce = 70.0f;
+	if (currentState == WerehogState::Dash)
+		rotForce = 30.0f;
+	else if (currentState == WerehogState::Guard)
+		rotForce = 0;
+	playerContext->m_spParameter->m_scpNode->m_ValueMap[Sonic::Player::ePlayerSpeedParameter_RotationForce0] = rotForce;
+	playerContext->m_spParameter->m_scpNode->m_ValueMap[Sonic::Player::ePlayerSpeedParameter_RotationForce1] = rotForce;
+	playerContext->m_spParameter->m_scpNode->m_ValueMap[Sonic::Player::ePlayerSpeedParameter_RotationForce2] = rotForce;
+	playerContext->m_spParameter->m_scpNode->m_ValueMap[Sonic::Player::ePlayerSpeedParameter_AirBoostEnableChaosEnergy] = 1000.0f;
+	playerContext->m_spParameter->m_scpNode->m_ValueMap[Sonic::Player::ePlayerSpeedParameter_EnableHurdleJumpMinVelocity] = 1000.0f;
 
 
-	}
+	
 	isGrounded = playerContext->m_Grounded;
 	/*sonic->m_spParameter->m_scpNode->m_ValueMap.erase(Sonic::Player::ePlayerSpeedParameter_BoostEnableChaosEnergy);
 	sonic->m_spParameter->m_scpNode->m_ValueMap.erase(Sonic::Player::ePlayerSpeedParameter_AirBoostEnableChaosEnergy);*/
@@ -412,7 +478,10 @@ HOOK(void, __fastcall, CHudSonicStageUpdateParallel, 0x1098A50, Sonic::CGameObje
 	Particle_Checker();
 	SetPlayerVelocity();
 	if (isGrounded && jumpcount > 0)
+	{
+		canJump = true;
 		jumpcount = 0;
+	}
 	if (unleashMode && CONTEXT->m_ChaosEnergy > 0)
 	{
 		playerContext->m_ChaosEnergy -= in_rUpdateInfo.DeltaTime * 5;
@@ -528,7 +597,8 @@ HOOK(void, __fastcall, CHudSonicStageUpdateParallel, 0x1098A50, Sonic::CGameObje
 						}
 						}
 					}
-					for (size_t i = 0; i < XMLParser::starterAttacks.size(); i++)
+					SearchThenExecute(attackName, true, eKeyState_None);
+					/*for (size_t i = 0; i < XMLParser::starterAttacks.size(); i++)
 					{
 						if (XMLParser::starterAttacks[i].ActionName == attackName)
 						{
@@ -537,69 +607,71 @@ HOOK(void, __fastcall, CHudSonicStageUpdateParallel, 0x1098A50, Sonic::CGameObje
 							comboAttackIndex = i;
 							timerCombo = 0;
 							playingAttack = true;
+							attackCache = XMLParser::starterAttacks[i];
 							ExecuteAttackCommand(XMLParser::starterAttacks[i].MotionName, comboAttackIndex, true);
 							break;
 						}
-					}
+					}*/
 				}
 
 				if (comboProgress >= 1)
 				{
-					switch (currentButtonChain[comboProgress])
-					{
-					case eKeyState_X:
-					{
-						for (size_t i = 0; i < XMLParser::attacks.size(); i++)
-						{
-							if (lastAttackName == XMLParser::attacks[i].ActionName)
-							{
-								if (XMLParser::attacks[i].KEY__XDown.empty())
-									continue;
-								comboAttackIndex = i;
-								timerCombo = 0;
-								playingAttack = true;
-								ExecuteAttackCommand(XMLParser::attacks[i].KEY__XDown, comboAttackIndex, false);
-								break;
-							}
-						}
+					SearchThenExecute(lastAttackName, false, currentButtonChain[comboProgress]);
+					//switch (currentButtonChain[comboProgress])
+					//{
+					//case eKeyState_X:
+					//{
 
-						break;
-					}
-					case eKeyState_Y:
-					{
-						for (size_t i = 0; i < XMLParser::attacks.size(); i++)
-						{
-							if (lastAttackName == XMLParser::attacks[i].ActionName)
-							{
-								if (XMLParser::attacks[i].KEY__YDown.empty())
-									continue;
-								comboAttackIndex = i;
-								timerCombo = 0;
-								playingAttack = true;
-								ExecuteAttackCommand(XMLParser::attacks[i].KEY__YDown, comboAttackIndex, false);
-								break;
-							}
-						}
-						break;
-					}
-					case eKeyState_A:
-					{
-						for (size_t i = 0; i < XMLParser::attacks.size(); i++)
-						{
-							if (lastAttackName == XMLParser::attacks[i].ActionName)
-							{
-								if (XMLParser::attacks[i].KEY__ADown.empty())
-									continue;
-								comboAttackIndex = i;
-								timerCombo = 0;
-								playingAttack = true;
-								ExecuteAttackCommand(XMLParser::attacks[i].KEY__ADown, comboAttackIndex, false);
-								break;
-							}
-						}
-						break;
-					}
-					}
+					//	SearchThenExecute(lastAttackName, false, eKeyState_X);
+					//	/*for (size_t i = 0; i < XMLParser::attacks.size(); i++)
+					//	{
+					//		if (lastAttackName == XMLParser::attacks[i].ActionName)
+					//		{
+					//			if (XMLParser::attacks[i].KEY__XDown.empty())
+					//				continue;
+					//			comboAttackIndex = i;
+					//			timerCombo = 0;
+					//			playingAttack = true;
+					//			ExecuteAttackCommand(XMLParser::attacks[i].KEY__XDown, comboAttackIndex, false);
+					//			for (size_t i = 0; i < XMLParser::attacks.size(); i++)
+					//			{
+					//				if (lastAttackName == XMLParser::attacks[i].KEY__XDown)
+					//				{
+					//					attackCache = XMLParser::attacks[i];
+					//					break;
+					//				}
+					//			}
+					//			break;
+					//		}
+					//	}*/
+
+					//	break;
+					//}
+					//case eKeyState_Y:
+					//{
+
+					//	SearchThenExecute(lastAttackName, false, eKeyState_Y);
+					//	break;
+					//}
+					//case eKeyState_A:
+					//{
+					//	for (size_t i = 0; i < XMLParser::attacks.size(); i++)
+					//	{
+					//		if (lastAttackName == XMLParser::attacks[i].ActionName)
+					//		{
+					//			if (XMLParser::attacks[i].KEY__ADown.empty())
+					//				continue;
+					//			comboAttackIndex = i;
+					//			timerCombo = 0;
+					//			playingAttack = true;
+					//			attackCache = XMLParser::starterAttacks[i];
+					//			ExecuteAttackCommand(XMLParser::attacks[i].KEY__ADown, comboAttackIndex, false);
+					//			break;
+					//		}
+					//	}
+					//	break;
+					//}
+					//}
 				}
 
 			}
@@ -609,6 +681,15 @@ HOOK(void, __fastcall, CHudSonicStageUpdateParallel, 0x1098A50, Sonic::CGameObje
 	if (inputPtr->IsTapped(Sonic::eKeyState_A) && !playingAttack)
 	{
 		isGrounded = false;
+		if (jumpcount == 1 && canJump)
+		{
+			canJump = false;
+			AddJumpThrust(Sonic::Player::CPlayerSpeedContext::GetInstance(), true);
+			Common::PlaySoundStatic(sound, 42);
+
+			PlayAnim("JumpEvil2");
+			jumpcount++;
+		}
 		
 	}
 
@@ -659,12 +740,21 @@ HOOK(void, __fastcall, CSonicProcMsgDamage, 0xE27890, Sonic::Player::CSonic* Thi
 
 	}
 }
+HOOK(double, __fastcall, GetClassicMaxVelocity, 0x00DC1F20, CSonicContext* This, void* Edx, int a2)
+{
+	return CONTEXT->m_MaxVelocity;
+}
+HOOK(void, __fastcall, SetClassicMaxVelocity , 0x00DC2020, CSonicContext* This)
+{
+	SetPlayerVelocity();
+}
 HOOK(char, __fastcall, XButtonInput, 0x00DFDF20, CSonicContext* This)
 {
 
 	if (playingAttack)
 	{
 		const auto playerContext = Sonic::Player::CPlayerSpeedContext::GetInstance();
+		if(!attackCache.IsGravity)
 		playerContext->m_Velocity = CVector(0, 0, 0);
 	}
 	return 0;
@@ -693,12 +783,12 @@ HOOK(void, __fastcall, Jump_PlayAnimation, 0x01235250, int This)
 		if (jumpcount == 0)
 		{
 			PlayAnim("JumpEvil1");
+			Common::PlaySoundStatic(sound, 42);
 		}
 		else
 		{
 			if (canJump)
 			{
-				canJump = false;
 				AddJumpThrust(Sonic::Player::CPlayerSpeedContext::GetInstance(), true);
 				PlayAnim("JumpEvil2");
 			}
@@ -759,9 +849,11 @@ void evSonic::Install()
 
 	INSTALL_HOOK(XButtonHoming_ChangeToHomingAttack);
 	INSTALL_HOOK(XButtonInput);
+	INSTALL_HOOK(SetClassicMaxVelocity);
+	INSTALL_HOOK(GetClassicMaxVelocity);
 	INSTALL_HOOK(JumpStart);
 	INSTALL_HOOK(Jump_PlayAnimation);
-	INSTALL_HOOK(MotoraDamage);
+	//INSTALL_HOOK(MotoraDamage);
 	INSTALL_HOOK(HomingStart);
 	INSTALL_HOOK(CPlayerAddCallback);
 	INSTALL_HOOK(ProcMsgRestartStage);
@@ -771,6 +863,8 @@ void evSonic::Install()
 	//WRITE_JUMP(0x01232055, 0x01232073);
 	//Unmap stomp
 	WRITE_JUMP(0X00DFDD72, 0X00DFDDF4);
+
+	
 
 	/*WRITE_MEMORY(0x015D71F8, char*, "chr_Sonic_EV");
 	WRITE_MEMORY(0x015EF200, char*, "chr_Sonic_EV");
@@ -787,6 +881,7 @@ void evSonic::Install()
 	//WRITE_NOP(0xDFE1C4, 2);
 	//WRITE_NOP(0xDFE1D2, 2);
 	//WRITE_MEMORY(0x00DF1D91, uint32_t, -1);
+	WRITE_MEMORY(0x00E57E4E, uint32_t, -1);
 
 	//Disable Spindash
 	WRITE_JUMP(0x00DC28D9, 0x00DC2946);
