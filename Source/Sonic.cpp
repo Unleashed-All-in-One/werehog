@@ -251,10 +251,10 @@ void SpawnParticleOnHand(const char* glitterName, bool right)
 {
 	const auto playerContext = Sonic::Player::CPlayerSpeedContext::GetInstance();
 	auto hand = playerContext->m_pPlayer->m_spCharacterModel->GetNode("Hand_R_Reference");
-	if(!punch)
-		Common::fCGlitterCreate(playerContext->m_pPlayer->m_spContext.get(), punch, &hand, "evil_super_s_punch_01", 1);
+	/*/if (!punch)
+		Common::fCGlitterCreate(playerContext->m_pPlayer->m_spContext.get(), punch, &hand, "evil_super_s_punch_01", 1);*/
 
-	/*if (right)
+	if (right)
 	{
 		auto index = playerContext->m_pPlayer->m_spCharacterModel->GetNode("Index1_L");
 		auto middle = playerContext->m_pPlayer->m_spCharacterModel->GetNode("Middle1_L");
@@ -289,7 +289,7 @@ void SpawnParticleOnHand(const char* glitterName, bool right)
 			Common::fCGlitterCreate(playerContext->m_pPlayer->m_spContext.get(), ringParticle_R, &ring, glitterName, 1);
 		if (!thumbParticle_R)
 			Common::fCGlitterCreate(playerContext->m_pPlayer->m_spContext.get(), thumbParticle_R, &thumb, glitterName, 1);
-	}*/
+	}
 
 
 
@@ -315,6 +315,25 @@ void CreateBerserkEffect()
 	if (!berserk[2])
 		Common::fCGlitterCreate(playerContext->m_pPlayer->m_spContext.get(), berserk[2], &node2, "evil_berserk01", 1);
 }
+void PlaySoundStaticCueName(SharedPtrTypeless& soundHandle, Hedgehog::base::CSharedString cueID)
+{
+	uint32_t* syncObject = *(uint32_t**)0x1E79044;
+	if (syncObject)
+	{
+		FUNCTION_PTR(void*, __thiscall, sub_75FA60, 0x75FA90, void* This, SharedPtrTypeless&, const Hedgehog::base::CSharedString& cueId);
+		sub_75FA60((void*)syncObject[8], soundHandle, cueID);
+	}
+}
+void PlaySoundStaticCueName2(SharedPtrTypeless& soundHandle, Hedgehog::base::CSharedString cueID, CVector a4)
+{
+	uint32_t* syncObject = *(uint32_t**)0x1E79044;
+	if (syncObject)
+	{
+		FUNCTION_PTR(void*, __thiscall, sub_75FA60, 0x75FB00, void* This, SharedPtrTypeless&, const Hedgehog::base::CSharedString& cueId, const CVector& a4);
+		sub_75FA60((void*)syncObject[8], soundHandle, cueID, a4);
+	}
+}
+std::string lastMusicCue;
 void ExecuteAttackCommand(std::string attack, int attackIndex, bool starter = false)
 {
 	//comboAttackIndex = attackIndex;
@@ -324,6 +343,22 @@ void ExecuteAttackCommand(std::string attack, int attackIndex, bool starter = fa
 	PlayAnim(GetStateNameFromTable(attack));
 	/*Common::PlaySoundStatic(sound, attacks.at(attackIndex).cueIDs[comboIndex]);*/
 	lastAttackName = attack;
+	
+		auto resourcelist = XMLParser::attacks.at(attackIndex).ResourceInfos.Resources;
+		int resourceIndex = 0;
+		for (size_t i = 0; i < resourcelist.size(); i++)
+		{
+			if (resourcelist[i].Type == CSB)
+			{
+				resourceIndex = i;
+				break;
+			}
+		}
+		sound.reset();
+		lastMusicCue = resourcelist[resourceIndex].Params.Cue;
+		PlaySoundStaticCueName(sound, Hedgehog::base::CSharedString(resourcelist[resourceIndex].Params.Cue.c_str()));
+	
+
 	SpawnParticleOnHand("slash", true);
 	SpawnParticleOnHand("slash", false);
 	timerAttack = 0;
@@ -467,6 +502,7 @@ HOOK(void, __fastcall, CHudSonicStageUpdateParallel, 0x1098A50, Sonic::CGameObje
 	DebugDrawText::log((std::string("Life") + std::to_string(lifeWerehog)).c_str(), 0);
 	DebugDrawText::log((std::string("PlayingAttack") + std::to_string(playingAttack)).c_str(), 0);
 	DebugDrawText::log((std::string("AttackAnim") + std::string(lastAttackName)).c_str(), 0);
+	DebugDrawText::log((std::string("Latest Music Cue: ") + std::string(lastMusicCue)).c_str(), 0);
 
 	DebugDrawText::log(stateCheckS.c_str(), 0);
 	auto inputPtr = &Sonic::CInputState::GetInstance()->m_PadStates[Sonic::CInputState::GetInstance()->m_CurrentPadStateIndex];
@@ -775,6 +811,7 @@ DWORD* GetServiceGameplay(Hedgehog::Base::TSynchronizedPtr<Sonic::CApplicationDo
 		mov     result, eax
 	};
 };
+
 HOOK(void, __fastcall, Jump_PlayAnimation, 0x01235250, int This)
 {
 	originalJump_PlayAnimation(This);
@@ -783,6 +820,7 @@ HOOK(void, __fastcall, Jump_PlayAnimation, 0x01235250, int This)
 		if (jumpcount == 0)
 		{
 			PlayAnim("JumpEvil1");
+
 			Common::PlaySoundStatic(sound, 42);
 		}
 		else

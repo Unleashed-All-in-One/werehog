@@ -1,7 +1,6 @@
 #include <iostream>
 #include <fstream>
 #include <vector>
-using namespace Sonic;
 void trim_cruft(std::string& buffer)
 {
 	static const char cruft[] = "\n\r";
@@ -167,7 +166,7 @@ void RegisterAnims(std::vector<Motion>& vec, rapidxml::xml_node<>* nodeMotion)
 		
 	}
 }
-void RegisterResources(std::vector<WerehogAttackNew>& vec, std::vector<Motion>& vecM, const char* path)
+void RegisterResources(const char* path)
 {
 	std::string modDir = std::string(path);
 	size_t pos = modDir.find_last_of("\\/");
@@ -175,18 +174,18 @@ void RegisterResources(std::vector<WerehogAttackNew>& vec, std::vector<Motion>& 
 	{
 		modDir.erase(pos + 1);
 	}
-	for (size_t i = 0; i < vecM.size(); i++)
+	for (size_t i = 0; i < XMLParser::animationTable.size(); i++)
 	{
-		WerehogAttackNew* attack;
-		for (size_t a = 0; a < vec.size(); a++)
+		int attackPos = 0;
+		for (size_t a = 0; a < XMLParser::attacks.size(); a++)
 		{
-			if (vec[a].MotionName == vecM[i].MotionName)
+			if (XMLParser::attacks.at(a).MotionName == XMLParser::animationTable.at(i).MotionName)
 			{
-				attack = &vec[a];
+				attackPos = a;
 				break;
 			}
 		}
-		std::string filepath = std::format("{0}attack/{1}.tbres.xml", modDir,vecM[i].FileName);
+		std::string filepath = std::format("{0}attack/{1}.tbres.xml", modDir, XMLParser::animationTable.at(i).FileName);
 		FILE* file = fopen(filepath.c_str(), "rb");
 		if (file == nullptr)
 			continue;
@@ -197,23 +196,38 @@ void RegisterResources(std::vector<WerehogAttackNew>& vec, std::vector<Motion>& 
 		fread(buffer.data(), 1, fileSize, file);
 		rapidxml::xml_document<> doc;
 		buffer.push_back('\0');
+
 		doc.parse<0>(&buffer[0]);
-		auto resourceNode = doc.first_node()->next_sibling();
+		auto resourceNode = doc.first_node();
 		Resource res;
+		int id = 0;
 		//Add trigger functionality too once everything else is done
 		for (rapidxml::xml_node<>* child = resourceNode->first_node(); child; child = child->next_sibling())
 		{
+			if (!isPartOf(child->name(), "ResourceInfo"))
+				continue;
 			auto resource = child->first_node();
-			auto resourceInsides = resource->first_node();
-			auto name = resourceInsides->name();
-			if (isPartOf(name, "ID"))
-				res.ID = reinterpret_cast<int>(child->value());
-			if (isPartOf(name, "Type"))
-				res.Type = child->value() == "CSB" ? ResourceType::CSB : ResourceType::Effect;
-			if (isPartOf(name, "Param"))
+			for (rapidxml::xml_node<>* child2 = resource->first_node(); child2; child2 = child2->next_sibling())
 			{
-				resourceInsides->first_node();
+				res.ID = id;
+				auto name = child2->name();
+				/*if (isPartOf(name, "ID"))
+					res.ID = reinterpret_cast<int>(child2->value());*/
+				if (isPartOf(name, "Type"))
+					res.Type = isPartOf(child2->value(),"CSB") ? ResourceType::CSB : ResourceType::Effect;
+				if (isPartOf(name, "Param"))
+				{
+					Param p;
+					p.FileName = child2->first_node()->value();
+					if(child2->first_node()->next_sibling() != nullptr)
+					p.Cue = child2->first_node()->next_sibling()->value();
+					res.Params = p;
+				}
+
 			}
+			id++;
+			XMLParser::attacks.at(attackPos).ResourceInfos.Resources.push_back(res);
+			
 		}
 
 		fclose(file);
@@ -258,7 +272,7 @@ void XMLParser::Install(const char* path)
 	auto motionStartpoint = doc2.first_node()->first_node();
 	RegisterAnims(XMLParser::animationTable, motionStartpoint);
 
-	//RegisterResources(XMLParser::attacks, XMLParser::animationTable, path);
+	RegisterResources(path);
 	printf("\nParsing Complete");
 
 

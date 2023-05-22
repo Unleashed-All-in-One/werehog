@@ -197,6 +197,7 @@
     </ClCompile>
     <ClCompile Include="Sonic.cpp" />
     <ClCompile Include="TemporaryRigidbodyStuff.cpp" />
+    <ClCompile Include="Testing.cpp" />
     <ClCompile Include="XMLParser.cpp" />
   </ItemGroup>
   <ItemGroup>
@@ -206,6 +207,7 @@
     <ClInclude Include="DllMain.cpp" />
     <ClInclude Include="Pch.h" />
     <ClInclude Include="Sonic.h" />
+    <ClInclude Include="Testing.h" />
     <ClInclude Include="XMLParser.h" />
   </ItemGroup>
   <ItemGroup>

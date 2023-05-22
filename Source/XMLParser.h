@@ -13,7 +13,7 @@ struct Resource
 {
 	int ID;
 	ResourceType Type;
-	std::vector< Param> Params;
+	Param Params;
 
 };
 struct ResourceInfo
