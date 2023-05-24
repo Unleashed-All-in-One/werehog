@@ -1048,7 +1048,11 @@ namespace Common
 		PlayAudioFromCueName(*(void**)0x1E0BE5C, name, fadeInTime);
 	}
 	
-
+	inline float* GetPlayerMaxSpeed()
+	{
+		if (!*PLAYER_CONTEXT) return 0;
+		return (float*)((uint32_t)*PLAYER_CONTEXT + 0x53C);
+	}
 	inline void StopBGM(char const* cueName, float fadeOutTime)
 	{
 		FUNCTION_PTR(int, __stdcall, StopAudioFromCueName, 0xD61E40, void* gameDocument, Hedgehog::Base::CSharedString & cueName, float fadeOutTime);

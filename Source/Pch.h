@@ -27,6 +27,7 @@
 #define DEBUG_DRAW_TEXT_DLL_IMPORT	
 #include "DebugDrawText.h"	
 #include "Testing.h"	
+#include "EnemyBase.h"	
 #include "CustomAnimationManager.h"	
 
 #include "ArchiveTreePatcher.h"

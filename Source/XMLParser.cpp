@@ -196,7 +196,7 @@ void RegisterResources(const char* path)
 		fread(buffer.data(), 1, fileSize, file);
 		rapidxml::xml_document<> doc;
 		buffer.push_back('\0');
-
+		printf(std::format("\nParsing {0}...", XMLParser::animationTable.at(i).FileName).c_str());
 		doc.parse<0>(&buffer[0]);
 		auto resourceNode = doc.first_node();
 		Resource res;
@@ -229,11 +229,8 @@ void RegisterResources(const char* path)
 			XMLParser::attacks.at(attackPos).ResourceInfos.Resources.push_back(res);
 			
 		}
-
 		fclose(file);
 	}
-	
-
 }
 void XMLParser::Install(const char* path)
 {
@@ -260,14 +257,11 @@ void XMLParser::Install(const char* path)
 	auto actionNode = doc.first_node()->last_node();
 	for (rapidxml::xml_node<>* child = actionNode->first_node(); child; child = child->next_sibling())
 	{
-		bool skip = false;
-
 		auto attack = ParseActionNode(child, actionNode);
 		if (attack.ActionName.find("Start_") != std::string::npos)
 			XMLParser::starterAttacks.push_back(attack);
 		else
 			XMLParser::attacks.push_back(attack);
-
 	}
 	auto motionStartpoint = doc2.first_node()->first_node();
 	RegisterAnims(XMLParser::animationTable, motionStartpoint);

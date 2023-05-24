@@ -184,6 +184,7 @@
     <ClCompile Include="ArchiveTreePatcher.cpp" />
     <ClCompile Include="Configuration.cpp" />
     <ClCompile Include="CustomAnimationManager.cpp" />
+    <ClCompile Include="EnemyBase.cpp" />
     <ClCompile Include="Mod.cpp" />
     <ClCompile Include="Pch.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Create</PrecompiledHeader>
@@ -205,6 +206,7 @@
     <ClInclude Include="Configuration.h" />
     <ClInclude Include="CustomAnimationManager.h" />
     <ClInclude Include="DllMain.cpp" />
+    <ClInclude Include="EnemyBase.h" />
     <ClInclude Include="Pch.h" />
     <ClInclude Include="Sonic.h" />
     <ClInclude Include="Testing.h" />

@@ -72,6 +72,7 @@ namespace Sonic
 //	Ring1_R" : "
 //	"Thumb1_R" :
 SharedPtrTypeless sound, soundUnleash, soundUnleashStart;
+SharedPtrTypeless soundRegularJump;
 SharedPtrTypeless indexParticle_L, indexParticle_R;
 SharedPtrTypeless middleParticle_L, middleParticle_R;
 SharedPtrTypeless pinkyParticle_L, pinkyParticle_R;
@@ -213,11 +214,13 @@ float GetVelocity()
 void RegisterInputs()
 {
 	auto inputPtr = &Sonic::CInputState::GetInstance()->m_PadStates[Sonic::CInputState::GetInstance()->m_CurrentPadStateIndex];
+	auto state = inputPtr->TappedState;
+	DebugDrawText::log(std::to_string(state).c_str(), 0);
+	lastTap = inputPtr->DownState;
+	DebugDrawText::log(std::to_string(lastTap).c_str(), 0);
 	if (timerCombo < timerComboMax )
 	{
-		auto state = inputPtr->TappedState;
-		lastTap = inputPtr->DownState;
-		if (state == eKeyState_A || state == eKeyState_X || state == eKeyState_Y)
+		if (lastTap == eKeyState_A || state == eKeyState_X || state == eKeyState_Y)
 			currentButtonChain.push_back(state);
 		if (currentButtonChain.size() > 8)
 		{
@@ -246,13 +249,14 @@ void DespawnParticlesHand()
 	pinkyParticle_R.reset();
 	ringParticle_R.reset();
 	thumbParticle_R.reset();
+	punch.reset();
 }
 void SpawnParticleOnHand(const char* glitterName, bool right)
 {
 	const auto playerContext = Sonic::Player::CPlayerSpeedContext::GetInstance();
-	auto hand = playerContext->m_pPlayer->m_spCharacterModel->GetNode("Hand_R_Reference");
-	/*/if (!punch)
-		Common::fCGlitterCreate(playerContext->m_pPlayer->m_spContext.get(), punch, &hand, "evil_super_s_punch_01", 1);*/
+	auto hand = playerContext->m_pPlayer->m_spCharacterModel->GetNode("Arm09Sub_R");
+	if (!punch)
+		Common::fCGlitterCreate(playerContext->m_pPlayer->m_spContext.get(), punch, &hand, "evil_punch_01", 1);
 
 	if (right)
 	{
@@ -417,25 +421,22 @@ void SearchThenExecute(std::string input, bool starter, Sonic::EKeyState state)
 		}
 	}
 }
-void SetPlayerVelocity()
+float SetPlayerVelocity()
 {
 	const auto playerContext = Sonic::Player::CPlayerSpeedContext::GetInstance();
 	switch (currentState)
 	{
 	case WerehogState::Dash:
 	{
-		playerContext->m_MaxVelocity = 20;
-		break;
+		return 20;
 	}
 	case WerehogState::Normal:
 	{
-		playerContext->m_MaxVelocity = 10;
-		break;
+		return 10;
 	}
 	case WerehogState::Guard:
 	{
-		playerContext->m_MaxVelocity = 2;
-		break;
+		return 2;
 	}
 	}
 }
@@ -461,9 +462,173 @@ void CheckForThinPlatform()
 		DebugDrawText::log("Left Hit!", 0);
 	}
 }
+HOOK(char, __stdcall, SonicStateGrounded, 0xDFF660, int* a1, bool a2)
+{
+	canJump = true;
+	jumpcount = 0;
+	isGrounded = true;
+	return originalSonicStateGrounded(a1, a2);
+}
+
+HOOK(void, __fastcall, CPlayerAddCallback, 0xE799F0, Sonic::Player::CPlayer* This, void* Edx,
+	const Hedgehog::Base::THolder<Sonic::CWorld>& worldHolder, Sonic::CGameDocument* pGameDocument, const boost::shared_ptr<Hedgehog::Database::CDatabase>& spDatabase)
+{
+	originalCPlayerAddCallback(This, Edx, worldHolder, pGameDocument, spDatabase);
+
+	const auto playerContext = Sonic::Player::CPlayerSpeedContext::GetInstance();
+	playerContext->m_ChaosEnergy = 0;
+	lifeWerehog = 5.0f;
+	canJump = true;
+	isGrounded = true;
+	playingAttack = false;
+
+}
+HOOK(int, __fastcall, HomingBegin, 0x01232040, CQuaternion* This)
+{
+	if (BlueBlurCommon::IsClassic())
+	{
+		if (CONTEXT->m_HomingAttackTargetActorID)
+		{
+			return originalHomingBegin(This);
+		}
+		else
+
+			return 0;
+	}
+	return originalHomingBegin(This);
+}
+HOOK(void, __fastcall, CClassicSonicProcMsgDamage, 0xDEA340, Sonic::Player::CSonic* This, void* _, hh::fnd::Message& in_rMsg)
+{
+	lifeWerehog -= 1;
+	if (lifeWerehog > 0)
+	{
+		PlayAnim("Evilsonic_damageMB");
+	}
+	else
+	{
+		CONTEXT->m_RingCount = 0;
+		originalCClassicSonicProcMsgDamage(This, _, in_rMsg);
+
+	}
+}
+
+//HOOK(char, __fastcall, XButtonInput, 0x00DFDF20, DWORD* This)
+//{
+//	if (BlueBlurCommon::IsClassic())
+//	{
+//		if (playingAttack)
+//		{
+//			const auto playerContext = Sonic::Player::CPlayerSpeedContext::GetInstance();
+//			if (!attackCache.IsGravity)
+//				playerContext->m_Velocity = CVector(0, 0, 0);
+//		}
+//		return 0;
+//
+//	}
+//		return originalXButtonInput(This);
+//}
+HOOK(char, __fastcall, XButtonHoming_ChangeToHomingAttack, 0x00DFFE30, CSonicContext* This, void* Edx, int a2)
+{
+	if (BlueBlurCommon::IsClassic())
+		return 0;
+	else
+		return originalXButtonHoming_ChangeToHomingAttack(This, Edx, a2);
+}
+DWORD* GetServiceGameplay(Hedgehog::Base::TSynchronizedPtr<Sonic::CApplicationDocument> doc)
+{
+	uint32_t func = 0x0040EBD0;
+	DWORD* result;
+	__asm
+	{
+		mov     edi, doc
+		add     edi, 34h
+		call func
+		mov     result, eax
+	};
+};
+
+HOOK(void, __fastcall, Jump_PlayAnimation, 0x01235250, int This)
+{
+	originalJump_PlayAnimation(This);
+	if (BlueBlurCommon::IsClassic())
+	{
+		if (jumpcount == 0)
+		{
+			PlayAnim("JumpEvil1");
+
+			Common::PlaySoundStatic(sound, 42);
+		}
+		else
+		{
+			if (canJump)
+			{
+				AddJumpThrust(Sonic::Player::CPlayerSpeedContext::GetInstance(), true);
+				PlayAnim("JumpEvil2");
+			}
+		}
+		jumpcount++;
+	}
+	else
+	{
+		const auto playerContext = Sonic::Player::CPlayerSpeedContext::GetInstance();
+		//Find a way to just change the sound with asm instead
+		Common::PlaySoundStatic(soundRegularJump,2002027);
+	}
+}
+HOOK(char, __fastcall, JumpStart, 0x01114CB0, int* This)
+{
+	if (playingAttack == true && BlueBlurCommon::IsClassic())
+		return 0;
+	auto retu = originalJumpStart(This);
+	return  retu;
+
+}
+HOOK(char, __fastcall, HomingStart, 0x00DC50D0, CSonicContext* This, void* Edx, int a2)
+{
+	return 0;
+}
+
+HOOK(void, __fastcall, ProcMsgRestartStage, 0xE76810, Sonic::Player::CPlayer* This, void* Edx, hh::fnd::Message& message)
+{
+	originalProcMsgRestartStage(This, Edx, message);
+	lifeWerehog = 5.0f;
+}
+//00BDE360
+//void __thiscall Sonic::CEnemyBase::AddCallback(Sonic::CEnemyBase *this, int a2)
+//char __thiscall sub_BE0790(char *this, , int a3)
+
+HOOK(void, __fastcall, CSonicSetMaxSpeedBasis, 0xDFBCA0, int* This)
+{
+	originalCSonicSetMaxSpeedBasis(This);
+
+	if (*pClassicSonicContext && GetServiceGameplay(Sonic::CApplicationDocument::GetInstance())[1] == 1)
+	{
+		float* maxSpeed = Common::GetPlayerMaxSpeed();
+		*maxSpeed = max(*maxSpeed, SetPlayerVelocity());
+	}
+}
+
+HOOK(double, __fastcall, GetClassicMaxVelocity, 0x00DC1F20, CSonicContext* This, void* Edx, int a2)
+{
+	return CONTEXT->m_MaxVelocity;
+}
+HOOK(void, __fastcall, SetClassicMaxVelocity, 0x00DC2020, CSonicContext* This)
+{
+	if (*pClassicSonicContext && GetServiceGameplay(Sonic::CApplicationDocument::GetInstance())[1] == 1)
+	{
+		float* maxSpeed = Common::GetPlayerMaxSpeed();
+		*maxSpeed = max(*maxSpeed, SetPlayerVelocity());
+	}
+}
+
 HOOK(void, __fastcall, CHudSonicStageUpdateParallel, 0x1098A50, Sonic::CGameObject* This, void* Edx, const hh::fnd::SUpdateInfo& in_rUpdateInfo)
 {
+	
 	originalCHudSonicStageUpdateParallel(This, Edx, in_rUpdateInfo);
+	if (!BlueBlurCommon::IsClassic())
+	{
+		return;
+	}
 	const auto playerContext = Sonic::Player::CPlayerSpeedContext::GetInstance();
 
 	// Force disable extended boost.
@@ -487,7 +652,7 @@ HOOK(void, __fastcall, CHudSonicStageUpdateParallel, 0x1098A50, Sonic::CGameObje
 	playerContext->m_spParameter->m_scpNode->m_ValueMap[Sonic::Player::ePlayerSpeedParameter_EnableHurdleJumpMinVelocity] = 1000.0f;
 
 
-	
+
 	isGrounded = playerContext->m_Grounded;
 	/*sonic->m_spParameter->m_scpNode->m_ValueMap.erase(Sonic::Player::ePlayerSpeedParameter_BoostEnableChaosEnergy);
 	sonic->m_spParameter->m_scpNode->m_ValueMap.erase(Sonic::Player::ePlayerSpeedParameter_AirBoostEnableChaosEnergy);*/
@@ -506,13 +671,12 @@ HOOK(void, __fastcall, CHudSonicStageUpdateParallel, 0x1098A50, Sonic::CGameObje
 
 	DebugDrawText::log(stateCheckS.c_str(), 0);
 	auto inputPtr = &Sonic::CInputState::GetInstance()->m_PadStates[Sonic::CInputState::GetInstance()->m_CurrentPadStateIndex];
-	if (inputPtr->IsDown(eKeyState_X) || inputPtr->IsDown(eKeyState_Y))
+	if (inputPtr->IsDown(eKeyState_X) || inputPtr->IsDown(eKeyState_Y) || inputPtr->IsDown(eKeyState_A))
 	{
 		timerCombo = 0;
 	}
 	RegisterInputs();
 	Particle_Checker();
-	SetPlayerVelocity();
 	if (isGrounded && jumpcount > 0)
 	{
 		canJump = true;
@@ -572,7 +736,6 @@ HOOK(void, __fastcall, CHudSonicStageUpdateParallel, 0x1098A50, Sonic::CGameObje
 	{
 		comboProgress = 0;
 		Common::SonicContextSetCollision(SonicCollision::TypeSonicSquatKick, false);
-
 	}
 	else
 	{
@@ -634,80 +797,11 @@ HOOK(void, __fastcall, CHudSonicStageUpdateParallel, 0x1098A50, Sonic::CGameObje
 						}
 					}
 					SearchThenExecute(attackName, true, eKeyState_None);
-					/*for (size_t i = 0; i < XMLParser::starterAttacks.size(); i++)
-					{
-						if (XMLParser::starterAttacks[i].ActionName == attackName)
-						{
-							if (XMLParser::starterAttacks[i].MotionName.empty())
-								return;
-							comboAttackIndex = i;
-							timerCombo = 0;
-							playingAttack = true;
-							attackCache = XMLParser::starterAttacks[i];
-							ExecuteAttackCommand(XMLParser::starterAttacks[i].MotionName, comboAttackIndex, true);
-							break;
-						}
-					}*/
 				}
 
 				if (comboProgress >= 1)
 				{
 					SearchThenExecute(lastAttackName, false, currentButtonChain[comboProgress]);
-					//switch (currentButtonChain[comboProgress])
-					//{
-					//case eKeyState_X:
-					//{
-
-					//	SearchThenExecute(lastAttackName, false, eKeyState_X);
-					//	/*for (size_t i = 0; i < XMLParser::attacks.size(); i++)
-					//	{
-					//		if (lastAttackName == XMLParser::attacks[i].ActionName)
-					//		{
-					//			if (XMLParser::attacks[i].KEY__XDown.empty())
-					//				continue;
-					//			comboAttackIndex = i;
-					//			timerCombo = 0;
-					//			playingAttack = true;
-					//			ExecuteAttackCommand(XMLParser::attacks[i].KEY__XDown, comboAttackIndex, false);
-					//			for (size_t i = 0; i < XMLParser::attacks.size(); i++)
-					//			{
-					//				if (lastAttackName == XMLParser::attacks[i].KEY__XDown)
-					//				{
-					//					attackCache = XMLParser::attacks[i];
-					//					break;
-					//				}
-					//			}
-					//			break;
-					//		}
-					//	}*/
-
-					//	break;
-					//}
-					//case eKeyState_Y:
-					//{
-
-					//	SearchThenExecute(lastAttackName, false, eKeyState_Y);
-					//	break;
-					//}
-					//case eKeyState_A:
-					//{
-					//	for (size_t i = 0; i < XMLParser::attacks.size(); i++)
-					//	{
-					//		if (lastAttackName == XMLParser::attacks[i].ActionName)
-					//		{
-					//			if (XMLParser::attacks[i].KEY__ADown.empty())
-					//				continue;
-					//			comboAttackIndex = i;
-					//			timerCombo = 0;
-					//			playingAttack = true;
-					//			attackCache = XMLParser::starterAttacks[i];
-					//			ExecuteAttackCommand(XMLParser::attacks[i].KEY__ADown, comboAttackIndex, false);
-					//			break;
-					//		}
-					//	}
-					//	break;
-					//}
-					//}
 				}
 
 			}
@@ -726,148 +820,22 @@ HOOK(void, __fastcall, CHudSonicStageUpdateParallel, 0x1098A50, Sonic::CGameObje
 			PlayAnim("JumpEvil2");
 			jumpcount++;
 		}
-		
+
 	}
 
 	timerCombo += in_rUpdateInfo.DeltaTime;
 	timerAttack += in_rUpdateInfo.DeltaTime;
 
 }
-HOOK(char, __stdcall, SonicStateGrounded, 0xDFF660, int* a1, bool a2)
-{
-	canJump = true;
-	jumpcount = 0;
-	isGrounded = true;
-	return originalSonicStateGrounded(a1, a2);
-}
 
-HOOK(void, __fastcall, CPlayerAddCallback, 0xE799F0, Sonic::Player::CPlayer* This, void* Edx,
-	const Hedgehog::Base::THolder<Sonic::CWorld>& worldHolder, Sonic::CGameDocument* pGameDocument, const boost::shared_ptr<Hedgehog::Database::CDatabase>& spDatabase)
-{
-	originalCPlayerAddCallback(This, Edx, worldHolder, pGameDocument, spDatabase);
 
-	const auto playerContext = Sonic::Player::CPlayerSpeedContext::GetInstance();
-	playerContext->m_ChaosEnergy = 0;
-	lifeWerehog = 5.0f;
-
-}
-int timerHoming;
-HOOK(int, __fastcall, HomingBegin, 0x01232040, CQuaternion* This)
-{
-	if (CONTEXT->m_HomingAttackTargetActorID)
-	{
-		return originalHomingBegin(This);
-	}
-	else
-
-		return 0;
-}
-HOOK(void, __fastcall, CSonicProcMsgDamage, 0xE27890, Sonic::Player::CSonic* This, void* _, hh::fnd::Message& in_rMsg)
-{
-	lifeWerehog -= 1;
-	if (lifeWerehog > 0)
-	{
-		PlayAnim("Evilsonic_damageMB");
-	}
-	else
-	{
-		CONTEXT->m_RingCount = 0;
-		originalCSonicProcMsgDamage(This, _, in_rMsg);
-
-	}
-}
-HOOK(double, __fastcall, GetClassicMaxVelocity, 0x00DC1F20, CSonicContext* This, void* Edx, int a2)
-{
-	return CONTEXT->m_MaxVelocity;
-}
-HOOK(void, __fastcall, SetClassicMaxVelocity , 0x00DC2020, CSonicContext* This)
-{
-	SetPlayerVelocity();
-}
-HOOK(char, __fastcall, XButtonInput, 0x00DFDF20, CSonicContext* This)
-{
-
-	if (playingAttack)
-	{
-		const auto playerContext = Sonic::Player::CPlayerSpeedContext::GetInstance();
-		if(!attackCache.IsGravity)
-		playerContext->m_Velocity = CVector(0, 0, 0);
-	}
-	return 0;
-}
-HOOK(char, __fastcall, XButtonHoming_ChangeToHomingAttack, 0x00DFFE30, CSonicContext* This, void* Edx, int a2)
-{
-	return 0;
-}
-DWORD* GetServiceGameplay(Hedgehog::Base::TSynchronizedPtr<Sonic::CApplicationDocument> doc)
-{
-	uint32_t func = 0x0040EBD0;
-	DWORD* result;
-	__asm
-	{
-		mov     edi, doc
-		add     edi, 34h
-		call func
-		mov     result, eax
-	};
-};
-
-HOOK(void, __fastcall, Jump_PlayAnimation, 0x01235250, int This)
-{
-	originalJump_PlayAnimation(This);
-	if (GetServiceGameplay(Sonic::CApplicationDocument::GetInstance())[1] == 1)
-	{
-		if (jumpcount == 0)
-		{
-			PlayAnim("JumpEvil1");
-
-			Common::PlaySoundStatic(sound, 42);
-		}
-		else
-		{
-			if (canJump)
-			{
-				AddJumpThrust(Sonic::Player::CPlayerSpeedContext::GetInstance(), true);
-				PlayAnim("JumpEvil2");
-			}
-		}
-		jumpcount++;
-	}
-}
-HOOK(char, __fastcall, JumpStart, 0x01114CB0, int* This)
-{
-	if (playingAttack == true)
-		return 0;
-	auto retu = originalJumpStart(This);
-	return  retu;
-
-}
-HOOK(char, __fastcall, HomingStart, 0x00DC50D0, CSonicContext* This, void* Edx, int a2)
-{
-	return 0;
-}
-
-HOOK(void, __fastcall, MotoraDamage, 0x00BC7440, int This, void* Edx, Hedgehog::Universe::MessageTypeSet* a2)
-{
-}
-HOOK(void, __fastcall, ProcMsgRestartStage, 0xE76810, Sonic::Player::CPlayer* This, void* Edx, hh::fnd::Message& message)
-{
-	originalProcMsgRestartStage(This, Edx, message);
-	lifeWerehog = 5.0f;
-}
 extern "C" __declspec(dllexport) float API_GetLife()
 {
 	return lifeWerehog;
 }
 void evSonic::Install()
 {
-	/*CustomAnimationManager::RegisterAnimation("Evilsonic_attackNCA", "evilsonic_attackNCA");
-	CustomAnimationManager::RegisterAnimation("Evilsonic_attackNCB", "evilsonic_attackNCB");
-	CustomAnimationManager::RegisterAnimation("Evilsonic_attackNCC", "evilsonic_attackNCC");
-	CustomAnimationManager::RegisterAnimation("Evilsonic_attackNCD", "evilsonic_attackNCD");
-	CustomAnimationManager::RegisterAnimation("Evilsonic_attackNCE", "evilsonic_attackNCE");
-	CustomAnimationManager::RegisterAnimation("Evilsonic_attackNSA", "evilsonic_attackNSA");
-	CustomAnimationManager::RegisterAnimation("Evilsonic_attackNSB", "evilsonic_attackNSB");*/
+	//Register some of the basic non-attack anims
 	CustomAnimationManager::RegisterAnimation("Evilsonic_damageMB", "evilsonic_damageMB");
 	CustomAnimationManager::RegisterAnimation("Evilsonic_guard_idle", "evilsonic_guard_idle");
 	CustomAnimationManager::RegisterAnimation("Evilsonic_BerserkerS", "evilsonic_BerserkerS");
@@ -875,66 +843,37 @@ void evSonic::Install()
 	CustomAnimationManager::RegisterAnimation("JumpEvil2", "evilsonic_jumpVS2");
 
 
-	/*const char* comboName;
-	const char* stateName;
-	Sonic::EKeyState combo[5];
-	int cueIDs[5];
-	const char* animations[5];*/
-	/*attacks.push_back(WerehogAttack({ "Wild Whirl", {eKeyState_X,eKeyState_X,eKeyState_X,eKeyState_X,eKeyState_X }, {134,134,135,136,136 }, {"Evilsonic_attackNCA","Evilsonic_attackNCB","Evilsonic_attackNCC","Evilsonic_attackNCD","Evilsonic_attackNCE"}, {0.15F,0.15F,0.15F,0.55F,0.85f}, 1 }));
-	attacks.push_back(WerehogAttack({ "Wild Whirl2", {eKeyState_Y,eKeyState_Y }, {134,134,135,136,136 }, {"Evilsonic_attackNSA","Evilsonic_attackNSB"}, {0.15F,0.15F},1 }));*/
-	WRITE_MEMORY(0x01271FD1, char*, "ef_null"); // Disable original game's jumpball creation
-	WRITE_MEMORY(0x015E9078, char*, "ef_null"); // Disable empty boost
+	//WRITE_MEMORY(0xD00E6F, uint8_t, 0xEB);
+	//INSTALL_HOOK(XButtonInput);
+	//INSTALL_HOOK(CSonicSetMaxSpeedBasis);
+	//INSTALL_HOOK(sub_BE0790);
+
 
 	INSTALL_HOOK(XButtonHoming_ChangeToHomingAttack);
-	INSTALL_HOOK(XButtonInput);
 	INSTALL_HOOK(SetClassicMaxVelocity);
 	INSTALL_HOOK(GetClassicMaxVelocity);
 	INSTALL_HOOK(JumpStart);
 	INSTALL_HOOK(Jump_PlayAnimation);
-	//INSTALL_HOOK(MotoraDamage);
-	INSTALL_HOOK(HomingStart);
 	INSTALL_HOOK(CPlayerAddCallback);
 	INSTALL_HOOK(ProcMsgRestartStage);
-	INSTALL_HOOK(CSonicProcMsgDamage);
+	INSTALL_HOOK(CClassicSonicProcMsgDamage);
 	INSTALL_HOOK(CHudSonicStageUpdateParallel);
 	INSTALL_HOOK(HomingBegin);
-	//WRITE_JUMP(0x01232055, 0x01232073);
-	//Unmap stomp
-	WRITE_JUMP(0X00DFDD72, 0X00DFDDF4);
 
-	
+	//Unmap stomp/spin for classic
+	WRITE_JUMP(0X00DC5F7E, 0X00DC6054);
+	WRITE_JUMP(0X012523C0, 0x012530E0);
 
-	/*WRITE_MEMORY(0x015D71F8, char*, "chr_Sonic_EV");
-	WRITE_MEMORY(0x015EF200, char*, "chr_Sonic_EV");
-	WRITE_MEMORY(0x015D0CB8, char*, "chr_Sonic_EV");
-	WRITE_MEMORY(0x015D0C00, char*, "chr_Sonic_EV");
-	WRITE_MEMORY(0x015B1ADC, char*, "chr_Sonic_EV");
-	WRITE_MEMORY(0x015B1ACC, char*, "chr_Sonic_EV");*/
+	//Disable MoveStop
+	WRITE_JUMP(0x0111C020, 0x0111C066);
+
 	//Force Jump stuff
 	WRITE_JUMP(0x01114A14, 0x01114A39);
 	WRITE_JUMP(0x01114D95, 0x01114DDA);
 
-	////Unmap boost (use chaos energy as unleashed meter)
-	//WRITE_MEMORY(0x0111BEEC, uint32_t, -1);
-	//WRITE_NOP(0xDFE1C4, 2);
-	//WRITE_NOP(0xDFE1D2, 2);
-	//WRITE_MEMORY(0x00DF1D91, uint32_t, -1);
+	//Force the jump sound to be silent
 	WRITE_MEMORY(0x00E57E4E, uint32_t, -1);
 
 	//Disable Spindash
 	WRITE_JUMP(0x00DC28D9, 0x00DC2946);
-
-	//Replace jump sound with the werehog's
-
-	//WRITE_JUMP(0x011BEFF4, 0x011BF036);
-	////From Brianuu - Disable squat and sliding
-	//WRITE_MEMORY(0xDFF8D5, uint8_t, 0xEB, 0x05);
-	//WRITE_MEMORY(0xDFF856, uint8_t, 0xE9, 0x81, 0x00, 0x00, 0x00);
-
-	////From Hyper - unmap drift
-	//WRITE_MEMORY(0xDF2DFF, uint32_t, -1);
-	//WRITE_MEMORY(0xDFF62B, uint32_t, -1);
-	//WRITE_MEMORY(0xDFF816, uint32_t, -1);
-	//WRITE_MEMORY(0x1119549, uint32_t, -1);
-	//WRITE_MEMORY(0x119910D, uint32_t, -1);
 }
