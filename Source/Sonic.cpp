@@ -65,7 +65,19 @@ namespace Sonic
 		}
 	};
 }
+class CTestState : public Sonic::Player::CPlayerSpeedContext::CStateSpeedBase
+{
+public:
+	static constexpr const char* ms_StateName = "Test";
 
+	void UpdateState() override
+	{
+		auto context = GetContext();  // don't need to use "This," because we ARE in a class method right now, not a hook.
+
+		/* Code that does some shit with sonic here */
+
+	}
+};
 //"Index1_R" :
 //"Middle1_R"
 //"Pinky1_R" :
@@ -78,7 +90,7 @@ SharedPtrTypeless middleParticle_L, middleParticle_R;
 SharedPtrTypeless pinkyParticle_L, pinkyParticle_R;
 SharedPtrTypeless ringParticle_L, ringParticle_R;
 SharedPtrTypeless thumbParticle_L, thumbParticle_R;
-SharedPtrTypeless punch;
+SharedPtrTypeless punch, referenceEffect;
 SharedPtrTypeless shield;
 SharedPtrTypeless berserk[5];
 std::vector<Sonic::EKeyState> currentButtonChain;
@@ -90,7 +102,9 @@ bool isUsingShield;
 float timerCombo;
 float timerAttack;
 float timerComboMax = 0.75f;
-float timerAttackMax = 0.55f;
+float timerDamage = 0.3f;
+float timerDamageMax = 0.3f;
+float timerAttackMax = 0.45f;
 int comboProgress = 0;
 float lifeWerehog = 5.0f;
 bool unleashMode;
@@ -162,6 +176,34 @@ enum WerehogState
 };
 WerehogState currentState;
 
+
+// Func for adding the test state.
+// Fun fact: declaring and assigning a STATIC variable in a func like this will only do this *once.*
+void AddTestState(Sonic::Player::CPlayerSpeedContext* context)
+{
+	static bool added = false;
+	if (added) return;
+
+	if (!added)
+	{
+		context->m_pPlayer->m_StateMachine.RegisterStateFactory<CTestState>();
+		added = true;
+	}
+}
+
+void AddImpulse(CVector position, CVector impulse, ImpulseType type, bool relative)
+{
+	alignas(16) MsgApplyImpulse message {};
+	message.m_position = position;
+	message.m_impulse = impulse;
+	message.m_impulseType = type;
+	message.m_outOfControl = 0.0f;
+	message.m_notRelative = !relative;
+	message.m_snapPosition = false;
+	message.m_pathInterpolate = false;
+	message.m_alwaysMinusOne = -1.0f;
+	Common::ApplyPlayerApplyImpulse(message);
+}
 void AddJumpThrust(CSonicContext* sonicContext, bool Condition)
 {
 	uint32_t func = 0x00E57C50;
@@ -195,6 +237,14 @@ std::string GetStateNameFromTable(std::string in)
 			return XMLParser::animationTable[i].FileName;
 	}
 }
+Motion GetMotionFromName(std::string in)
+{
+	for (size_t i = 0; i < XMLParser::animationTable.size(); i++)
+	{
+		if (XMLParser::animationTable[i].MotionName == in)
+			return XMLParser::animationTable[i];
+	}
+}
 void PlayAnim(std::string name)
 {
 	const auto playerContext = Sonic::Player::CPlayerSpeedContext::GetInstance();
@@ -218,7 +268,7 @@ void RegisterInputs()
 	DebugDrawText::log(std::to_string(state).c_str(), 0);
 	lastTap = inputPtr->DownState;
 	DebugDrawText::log(std::to_string(lastTap).c_str(), 0);
-	if (timerCombo < timerComboMax )
+	if (timerCombo < timerComboMax)
 	{
 		if (lastTap == eKeyState_A || state == eKeyState_X || state == eKeyState_Y)
 			currentButtonChain.push_back(state);
@@ -251,54 +301,83 @@ void DespawnParticlesHand()
 	thumbParticle_R.reset();
 	punch.reset();
 }
-void SpawnParticleOnHand(const char* glitterName, bool right)
+void SpawnParticleOnHand(std::string glitterNameLeft, std::string glitterNameRight, std::string boneless)
 {
+	///
+	///							O
+	///						   /|\
+	///						  / | \
+	///	  glitterNameRight-> /  |  \ <- glitterNameLeft
+	///							|
+	///						   / \
+	///						  /   \
+	///					     /  v  \
+	///						 boneless
+	///		
+	
 	const auto playerContext = Sonic::Player::CPlayerSpeedContext::GetInstance();
-	auto hand = playerContext->m_pPlayer->m_spCharacterModel->GetNode("Arm09Sub_R");
-	if (!punch)
-		Common::fCGlitterCreate(playerContext->m_pPlayer->m_spContext.get(), punch, &hand, "evil_punch_01", 1);
-
-	if (right)
+	DespawnParticlesHand();
+	if (!boneless.empty())
 	{
-		auto index = playerContext->m_pPlayer->m_spCharacterModel->GetNode("Index1_L");
-		auto middle = playerContext->m_pPlayer->m_spCharacterModel->GetNode("Middle1_L");
-		auto pinky = playerContext->m_pPlayer->m_spCharacterModel->GetNode("Pinky1_L");
-		auto ring = playerContext->m_pPlayer->m_spCharacterModel->GetNode("Ring1_L");
-		auto thumb = playerContext->m_pPlayer->m_spCharacterModel->GetNode("Thumb1_L");
-		if (!indexParticle_L)
-			Common::fCGlitterCreate(playerContext->m_pPlayer->m_spContext.get(), indexParticle_L, &index, glitterName, 1);
-		if (!middleParticle_L)
-			Common::fCGlitterCreate(playerContext->m_pPlayer->m_spContext.get(), middleParticle_L, &middle, glitterName, 1);
-		if (!pinkyParticle_L)
-			Common::fCGlitterCreate(playerContext->m_pPlayer->m_spContext.get(), pinkyParticle_L, &pinky, glitterName, 1);
-		if (!ringParticle_L)
-			Common::fCGlitterCreate(playerContext->m_pPlayer->m_spContext.get(), ringParticle_L, &ring, glitterName, 1);
-		if (!thumbParticle_L)
-			Common::fCGlitterCreate(playerContext->m_pPlayer->m_spContext.get(), thumbParticle_L, &thumb, glitterName, 1);
+		auto ref = playerContext->m_pPlayer->m_spCharacterModel->GetNode("Reference");
+		if (!referenceEffect)
+			Common::fCGlitterCreate(playerContext->m_pPlayer->m_spContext.get(), referenceEffect, &ref, boneless.c_str(), 1);
 	}
-	else
+	if (!glitterNameLeft.empty())
 	{
-		auto index = playerContext->m_pPlayer->m_spCharacterModel->GetNode("Index1_R");
-		auto middle = playerContext->m_pPlayer->m_spCharacterModel->GetNode("Middle1_R");
-		auto pinky = playerContext->m_pPlayer->m_spCharacterModel->GetNode("Pinky1_R");
-		auto ring = playerContext->m_pPlayer->m_spCharacterModel->GetNode("Ring1_R");
-		auto thumb = playerContext->m_pPlayer->m_spCharacterModel->GetNode("Thumb1_R");
-		if (!indexParticle_R)
-			Common::fCGlitterCreate(playerContext->m_pPlayer->m_spContext.get(), indexParticle_R, &index, glitterName, 1);
-		if (!middleParticle_R)
-			Common::fCGlitterCreate(playerContext->m_pPlayer->m_spContext.get(), middleParticle_R, &middle, glitterName, 1);
-		if (!pinkyParticle_R)
-			Common::fCGlitterCreate(playerContext->m_pPlayer->m_spContext.get(), pinkyParticle_R, &pinky, glitterName, 1);
-		if (!ringParticle_R)
-			Common::fCGlitterCreate(playerContext->m_pPlayer->m_spContext.get(), ringParticle_R, &ring, glitterName, 1);
-		if (!thumbParticle_R)
-			Common::fCGlitterCreate(playerContext->m_pPlayer->m_spContext.get(), thumbParticle_R, &thumb, glitterName, 1);
+		if (XMLParser::CLAWPARTICLE == glitterNameLeft)
+		{
+			auto index = playerContext->m_pPlayer->m_spCharacterModel->GetNode("Index1_L");
+			auto middle = playerContext->m_pPlayer->m_spCharacterModel->GetNode("Middle1_L");
+			auto pinky = playerContext->m_pPlayer->m_spCharacterModel->GetNode("Pinky1_L");
+			auto ring = playerContext->m_pPlayer->m_spCharacterModel->GetNode("Ring1_L");
+			auto thumb = playerContext->m_pPlayer->m_spCharacterModel->GetNode("Thumb1_L");
+			if (!indexParticle_L)
+				Common::fCGlitterCreate(playerContext->m_pPlayer->m_spContext.get(), indexParticle_L, &index, glitterNameLeft.c_str(), 1);
+			if (!middleParticle_L)
+				Common::fCGlitterCreate(playerContext->m_pPlayer->m_spContext.get(), middleParticle_L, &middle, glitterNameLeft.c_str(), 1);
+			if (!pinkyParticle_L)
+				Common::fCGlitterCreate(playerContext->m_pPlayer->m_spContext.get(), pinkyParticle_L, &pinky, glitterNameLeft.c_str(), 1);
+			if (!ringParticle_L)
+				Common::fCGlitterCreate(playerContext->m_pPlayer->m_spContext.get(), ringParticle_L, &ring, glitterNameLeft.c_str(), 1);
+			if (!thumbParticle_L)
+				Common::fCGlitterCreate(playerContext->m_pPlayer->m_spContext.get(), thumbParticle_L, &thumb, glitterNameLeft.c_str(), 1);
+		}
+		else
+		{
+			auto hand = playerContext->m_pPlayer->m_spCharacterModel->GetNode("Arm09Sub_L");
+			if (!punch)
+				Common::fCGlitterCreate(playerContext->m_pPlayer->m_spContext.get(), punch, &hand, glitterNameLeft.c_str(), 1);
+		}
 	}
-
-
-
+	if(!glitterNameRight.empty())
+	{
+		if (XMLParser::CLAWPARTICLE == glitterNameRight)
+		{
+			auto index = playerContext->m_pPlayer->m_spCharacterModel->GetNode("Index1_R");
+			auto middle = playerContext->m_pPlayer->m_spCharacterModel->GetNode("Middle1_R");
+			auto pinky = playerContext->m_pPlayer->m_spCharacterModel->GetNode("Pinky1_R");
+			auto ring = playerContext->m_pPlayer->m_spCharacterModel->GetNode("Ring1_R");
+			auto thumb = playerContext->m_pPlayer->m_spCharacterModel->GetNode("Thumb1_R");
+			if (!indexParticle_R)
+				Common::fCGlitterCreate(playerContext->m_pPlayer->m_spContext.get(), indexParticle_R, &index, glitterNameRight.c_str(), 1);
+			if (!middleParticle_R)
+				Common::fCGlitterCreate(playerContext->m_pPlayer->m_spContext.get(), middleParticle_R, &middle, glitterNameRight.c_str(), 1);
+			if (!pinkyParticle_R)
+				Common::fCGlitterCreate(playerContext->m_pPlayer->m_spContext.get(), pinkyParticle_R, &pinky, glitterNameRight.c_str(), 1);
+			if (!ringParticle_R)
+				Common::fCGlitterCreate(playerContext->m_pPlayer->m_spContext.get(), ringParticle_R, &ring, glitterNameRight.c_str(), 1);
+			if (!thumbParticle_R)
+				Common::fCGlitterCreate(playerContext->m_pPlayer->m_spContext.get(), thumbParticle_R, &thumb, glitterNameRight.c_str(), 1);
+		}
+		else
+		{
+			auto hand = playerContext->m_pPlayer->m_spCharacterModel->GetNode("Arm09Sub_R");
+			if (!punch)
+				Common::fCGlitterCreate(playerContext->m_pPlayer->m_spContext.get(), punch, &hand, glitterNameRight.c_str(), 1);
+		}
+	}
 }
-
 void KillBerserkEffect()
 {
 	berserk[0].reset();
@@ -319,15 +398,6 @@ void CreateBerserkEffect()
 	if (!berserk[2])
 		Common::fCGlitterCreate(playerContext->m_pPlayer->m_spContext.get(), berserk[2], &node2, "evil_berserk01", 1);
 }
-void PlaySoundStaticCueName(SharedPtrTypeless& soundHandle, Hedgehog::base::CSharedString cueID)
-{
-	uint32_t* syncObject = *(uint32_t**)0x1E79044;
-	if (syncObject)
-	{
-		FUNCTION_PTR(void*, __thiscall, sub_75FA60, 0x75FA90, void* This, SharedPtrTypeless&, const Hedgehog::base::CSharedString& cueId);
-		sub_75FA60((void*)syncObject[8], soundHandle, cueID);
-	}
-}
 void PlaySoundStaticCueName2(SharedPtrTypeless& soundHandle, Hedgehog::base::CSharedString cueID, CVector a4)
 {
 	uint32_t* syncObject = *(uint32_t**)0x1E79044;
@@ -338,6 +408,7 @@ void PlaySoundStaticCueName2(SharedPtrTypeless& soundHandle, Hedgehog::base::CSh
 	}
 }
 std::string lastMusicCue;
+
 void ExecuteAttackCommand(std::string attack, int attackIndex, bool starter = false)
 {
 	//comboAttackIndex = attackIndex;
@@ -347,24 +418,33 @@ void ExecuteAttackCommand(std::string attack, int attackIndex, bool starter = fa
 	PlayAnim(GetStateNameFromTable(attack));
 	/*Common::PlaySoundStatic(sound, attacks.at(attackIndex).cueIDs[comboIndex]);*/
 	lastAttackName = attack;
-	
-		auto resourcelist = XMLParser::attacks.at(attackIndex).ResourceInfos.Resources;
-		int resourceIndex = 0;
-		for (size_t i = 0; i < resourcelist.size(); i++)
-		{
-			if (resourcelist[i].Type == CSB)
-			{
-				resourceIndex = i;
-				break;
-			}
-		}
-		sound.reset();
-		lastMusicCue = resourcelist[resourceIndex].Params.Cue;
-		PlaySoundStaticCueName(sound, Hedgehog::base::CSharedString(resourcelist[resourceIndex].Params.Cue.c_str()));
-	
 
-	SpawnParticleOnHand("slash", true);
-	SpawnParticleOnHand("slash", false);
+	auto resourcelist = XMLParser::attacks.at(attackIndex).ResourceInfos.Resources;
+	int resourceIndex = 0;
+	int effectIndex = 0;
+	for (size_t i = 0; i < resourcelist.size(); i++)
+	{
+		if (resourcelist[i].Type == CSB)
+		{
+			resourceIndex = i;
+			break;
+		}
+	}
+	for (size_t i = 0; i < resourcelist.size(); i++)
+	{
+		if (resourcelist[i].Type == Effect)
+		{
+			effectIndex = i;
+			break;
+		}
+	}
+	AddImpulse(playerContext->m_spMatrixNode->m_Transform.m_Position, (playerContext->m_spMatrixNode->m_Transform.m_Rotation *Eigen::Vector3f::UnitZ()) * 10 * GetMotionFromName(attack).MotionMoveSpeedRatio, ImpulseType::None, true);
+	playerContext->ChangeState("Stand");
+	sound.reset();
+	lastMusicCue = resourcelist[resourceIndex].Params.Cue;
+	Common::PlaySoundStaticCueName(sound, Hedgehog::base::CSharedString(resourcelist[resourceIndex].Params.Cue.c_str()));
+
+	SpawnParticleOnHand(GetMotionFromName(attack).Effect.LEffect_Name1, GetMotionFromName(attack).Effect.REffect_Name1, resourcelist[effectIndex].Params.Cue);
 	timerAttack = 0;
 }
 
@@ -388,7 +468,7 @@ void SearchThenExecute(std::string input, bool starter, Sonic::EKeyState state)
 		}
 	}
 	else
-	{
+	{	
 		for (size_t i = 0; i < XMLParser::attacks.size(); i++)
 		{
 			if (input == XMLParser::attacks[i].ActionName)
@@ -418,6 +498,13 @@ void SearchThenExecute(std::string input, bool starter, Sonic::EKeyState state)
 				playingAttack = true;
 				break;
 			}
+		}
+
+		if (!playingAttack)
+		{
+			timerAttack = timerAttackMax;
+			timerCombo = timerComboMax;
+			currentButtonChain.clear();
 		}
 	}
 }
@@ -499,17 +586,23 @@ HOOK(int, __fastcall, HomingBegin, 0x01232040, CQuaternion* This)
 }
 HOOK(void, __fastcall, CClassicSonicProcMsgDamage, 0xDEA340, Sonic::Player::CSonic* This, void* _, hh::fnd::Message& in_rMsg)
 {
-	lifeWerehog -= 1;
-	if (lifeWerehog > 0)
+	if (timerDamage >= timerDamageMax)
 	{
-		PlayAnim("Evilsonic_damageMB");
-	}
-	else
-	{
-		CONTEXT->m_RingCount = 0;
-		originalCClassicSonicProcMsgDamage(This, _, in_rMsg);
+		lifeWerehog -= 1;
+		if (lifeWerehog > 0)
+		{
+			timerDamage = 0;
+			PlayAnim("Evilsonic_damageMB");
+			const auto playerContext = Sonic::Player::CPlayerSpeedContext::GetInstance();
 
-	}
+		}
+		else
+		{
+			CONTEXT->m_RingCount = 0;
+			originalCClassicSonicProcMsgDamage(This, _, in_rMsg);
+		}
+
+	}	
 }
 
 //HOOK(char, __fastcall, XButtonInput, 0x00DFDF20, DWORD* This)
@@ -620,6 +713,20 @@ HOOK(void, __fastcall, SetClassicMaxVelocity, 0x00DC2020, CSonicContext* This)
 		*maxSpeed = max(*maxSpeed, SetPlayerVelocity());
 	}
 }
+//_DWORD *__thiscall Sonic::Player::CSonicStateWalk::Begin(int this)
+HOOK(void, __fastcall, StandCalc,0x00DBA1D0, int* This)
+{
+	if (BlueBlurCommon::IsClassic() && timerAttack < timerAttackMax && timerCombo < timerComboMax)
+	{
+		auto playerContext = Sonic::Player::CPlayerSpeedContext::GetInstance();
+		if(playingAttack)
+		PlayAnim(GetStateNameFromTable(lastAttackName));
+	}
+	else
+		originalStandCalc(This);
+}
+//void __thiscall sub_DB9F90(CTempState *this)
+
 
 HOOK(void, __fastcall, CHudSonicStageUpdateParallel, 0x1098A50, Sonic::CGameObject* This, void* Edx, const hh::fnd::SUpdateInfo& in_rUpdateInfo)
 {
@@ -630,7 +737,8 @@ HOOK(void, __fastcall, CHudSonicStageUpdateParallel, 0x1098A50, Sonic::CGameObje
 		return;
 	}
 	const auto playerContext = Sonic::Player::CPlayerSpeedContext::GetInstance();
-
+	if (timerDamage <= timerDamageMax)
+		timerDamage += in_rUpdateInfo.DeltaTime;
 	// Force disable extended boost.
 	*(uint32_t*)((uint32_t)*CONTEXT->ms_pInstance + 0x680) = 1;
 	CONTEXT->m_ChaosEnergy = min(CONTEXT->m_ChaosEnergy, 100);
@@ -666,10 +774,10 @@ HOOK(void, __fastcall, CHudSonicStageUpdateParallel, 0x1098A50, Sonic::CGameObje
 	DebugDrawText::log("\n", 0);
 	DebugDrawText::log((std::string("Life") + std::to_string(lifeWerehog)).c_str(), 0);
 	DebugDrawText::log((std::string("PlayingAttack") + std::to_string(playingAttack)).c_str(), 0);
-	DebugDrawText::log((std::string("AttackAnim") + std::string(lastAttackName)).c_str(), 0);
+	DebugDrawText::log((std::string("AttackAnim: ") + std::string(lastAttackName)).c_str(), 0);
 	DebugDrawText::log((std::string("Latest Music Cue: ") + std::string(lastMusicCue)).c_str(), 0);
 
-	DebugDrawText::log(stateCheckS.c_str(), 0);
+	DebugDrawText::log((std::string("Current Player State: ") + stateCheckS).c_str(), 0);
 	auto inputPtr = &Sonic::CInputState::GetInstance()->m_PadStates[Sonic::CInputState::GetInstance()->m_CurrentPadStateIndex];
 	if (inputPtr->IsDown(eKeyState_X) || inputPtr->IsDown(eKeyState_Y) || inputPtr->IsDown(eKeyState_A))
 	{
@@ -694,10 +802,10 @@ HOOK(void, __fastcall, CHudSonicStageUpdateParallel, 0x1098A50, Sonic::CGameObje
 	}
 	if (inputPtr->IsDown(eKeyState_DpadDown))
 	{
-		auto node = playerContext->m_pPlayer->m_spCharacterModel->GetNode("Hand_R");
+		/*auto node = playerContext->m_pPlayer->m_spCharacterModel->GetNode("Hand_R");
 
 		collision1 = boost::make_shared<CBasicSphere>();
-		Sonic::CGameDocument::GetInstance()->AddGameObject(collision1);
+		Sonic::CGameDocument::GetInstance()->AddGameObject(collision1);*/
 	}
 	if ((inputPtr->IsDown(eKeyState_RightBumper) && CONTEXT->m_ChaosEnergy == 100.0f) && !unleashMode && isGrounded)
 	{
@@ -744,6 +852,7 @@ HOOK(void, __fastcall, CHudSonicStageUpdateParallel, 0x1098A50, Sonic::CGameObje
 			playingAttack = false;
 			comboProgress++;
 		}
+
 		if ((timerCombo > 0.1f && comboProgress > 0 || comboProgress == 0) && (timerAttack > timerAttackMax) && currentButtonChain.size() > comboProgress)
 		{
 			if (currentButtonChain[currentButtonChain.size() - 1] == eKeyState_X || currentButtonChain[currentButtonChain.size() - 1] == eKeyState_Y || currentButtonChain[currentButtonChain.size() - 1] == eKeyState_A)
@@ -827,11 +936,33 @@ HOOK(void, __fastcall, CHudSonicStageUpdateParallel, 0x1098A50, Sonic::CGameObje
 	timerAttack += in_rUpdateInfo.DeltaTime;
 
 }
+HOOK(void, __fastcall, _CPlayerSpeedUpdateParallel, 0xE6BF20, Sonic::Player::CPlayerSpeed* This, void* _, const hh::fnd::SUpdateInfo& updateInfo)
+{
+	original_CPlayerSpeedUpdateParallel(This, _, updateInfo);
 
+	// Test our state when we press Y
+	if (playingAttack)
+	{
+		This->m_StateMachine.ChangeState<CTestState>();
+	}
+}
 
+// Call the function when we initialize everything.
+HOOK(void*, __fastcall, _InitializePlayer, 0x00D96110, void* This)
+{
+	void* result = original_InitializePlayer(This);
+	auto context = Sonic::Player::CPlayerSpeedContext::GetInstance();    // Hack: there's a better way to do this but whatever. This writes to the singleton anyway.
+
+	AddTestState(context);
+	return result;
+}
 extern "C" __declspec(dllexport) float API_GetLife()
 {
 	return lifeWerehog;
+}
+extern "C" __declspec(dllexport) bool API_IsWerehogActive()
+{
+	return BlueBlurCommon::IsClassic();
 }
 void evSonic::Install()
 {
@@ -859,6 +990,9 @@ void evSonic::Install()
 	INSTALL_HOOK(CClassicSonicProcMsgDamage);
 	INSTALL_HOOK(CHudSonicStageUpdateParallel);
 	INSTALL_HOOK(HomingBegin);
+	INSTALL_HOOK(StandCalc);
+	INSTALL_HOOK(_CPlayerSpeedUpdateParallel);
+	INSTALL_HOOK(_InitializePlayer);
 
 	//Unmap stomp/spin for classic
 	WRITE_JUMP(0X00DC5F7E, 0X00DC6054);

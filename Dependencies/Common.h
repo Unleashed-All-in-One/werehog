@@ -973,6 +973,23 @@ namespace Common
 			call[pCGlitterCreate]
 		}
 	}
+	static void* fGetScreenPosition
+	(
+		Eigen::Vector4f const& pos3D,
+		Eigen::Vector4f& pos2D
+	)
+	{
+		static void* const pfGetScreenPosition = (void*)0xD61C40;
+		__asm
+		{
+			mov		ecx, 0x1E0BE5C
+			mov		ecx, [ecx]
+			mov		eax, pos3D
+			mov		ebx, pos2D
+			push	ebx
+			call[pfGetScreenPosition]
+		}
+	}
 
 	static void fCGlitterEnd
 	(
@@ -1270,23 +1287,7 @@ namespace Common
 		return false;
 	}	
 
-	static void* fGetScreenPosition
-	(
-		Eigen::Vector4f const& pos3D,
-		Eigen::Vector4f& pos2D
-	)
-	{
-		static void* const pfGetScreenPosition = (void*)0xD61C40;
-		__asm
-		{
-			mov		ecx, 0x1E0BE5C
-			mov		ecx, [ecx]
-			mov		eax, pos3D
-			mov		ebx, pos2D
-			push	ebx
-			call[pfGetScreenPosition]
-		}
-	}
+	
 	static char* IntToString(int num, const char* format)
 	{
 		char returnable[16];
@@ -1305,7 +1306,15 @@ namespace Common
 		return fpIsStageCompleted(stageID);
 	}
 
-	
+	inline void PlaySoundStaticCueName(SharedPtrTypeless& soundHandle, Hedgehog::base::CSharedString cueID)
+	{
+		uint32_t* syncObject = *(uint32_t**)0x1E79044;
+		if (syncObject)
+		{
+			FUNCTION_PTR(void*, __thiscall, sub_75FA60, 0x75FA90, void* This, SharedPtrTypeless&, const Hedgehog::base::CSharedString & cueId);
+			sub_75FA60((void*)syncObject[8], soundHandle, cueID);
+		}
+	}
 
 	inline bool GetStageData
 	(

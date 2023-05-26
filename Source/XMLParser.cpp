@@ -31,7 +31,7 @@ bool isPartOf(const char* w1, const char* w2)
 	}
 	return false;
 }
-
+std::string XMLParser::CLAWPARTICLE = "slash";
 std::string toCheck;
 std::string alreadyChecked;
 std::vector<Motion> XMLParser::animationTable;
@@ -90,6 +90,7 @@ WerehogAttackNew ParseActionNode(rapidxml::xml_node<>* node, rapidxml::xml_node<
 			attack.ActionValidHeightMin = reinterpret_cast<int>(child->value());
 		if (isPartOf(name, "IsGravity"))
 			attack.IsGravity = child->value() == "true" ? true : false;
+		
 	}
 	return attack;
 }
@@ -105,8 +106,48 @@ Motion ParseMotionNode(rapidxml::xml_node<>* node)
 			returned.MotionName = child->value();
 		if (isPartOf(name, "FileName"))
 			returned.FileName = child->value();
+		if (isPartOf(name, "MotionBlendTimeS"))
+			returned.MotionBlendTimeS = std::stof(child->value());
+		if (isPartOf(name, "MotionBlendTimeE"))
+			returned.MotionBlendTimeE = std::stof(child->value());
+		if (isPartOf(name, "MotionBlendTimeEIdle"))
+			returned.MotionBlendTimeEIdle = std::stof(child->value());
+		if (isPartOf(name, "MotionMoveSpeedRatio"))
+			returned.MotionMoveSpeedRatio = std::stof(child->value());
+		if (isPartOf(name, "MotionMoveSpeedRatio_Y"))
+			returned.MotionMoveSpeedRatio_Y = std::stof(child->value());
+		if (isPartOf(name, "MotionMoveSpeedRatioFrameStart_1"))
+			returned.MotionMoveSpeedRatioFrameStart_1 = std::stof(child->value());
+		if (isPartOf(name, "MotionMoveSpeedRatioFrame_1"))
+			returned.MotionMoveSpeedRatioFrame_1 = std::stof(child->value());
+		if (isPartOf(name, "MotionMoveSpeedRatioFrameY_1"))
+			returned.MotionMoveSpeedRatioFrameY_1 = std::stof(child->value());
 		if (isPartOf(name, "MotionFirstSpeed")) //dont think about it too much
-			returned.MotionFirstSpeed = reinterpret_cast<int>(child->value());
+			returned.MotionFirstSpeed = std::stof(child->value());
+		if (isPartOf(name, "Effect"))
+		{
+			for (rapidxml::xml_node<>* child2 = child->first_node(); child2; child2 = child2->next_sibling())
+			{
+				const char* name2 = child2->name();
+				if (isPartOf(name2, "RFEffect_Name1") || isPartOf(name2, "REffect_Name1"))
+				{
+					returned.Effect.REffect_Name1 = child2->value();
+				}
+				if (isPartOf(name2, "LFEffect_Name1") || isPartOf(name2, "LEffect_Name1"))
+				{
+					returned.Effect.LEffect_Name1 = child2->value();
+				}
+				if (isPartOf(name2, "RClaw_Start1") && child2->value() != nullptr)
+				{
+					returned.Effect.REffect_Name1 = XMLParser::CLAWPARTICLE;
+				}
+				if (isPartOf(name2, "LClaw_Start1") && child2->value() != nullptr)
+				{
+					returned.Effect.LEffect_Name1 = XMLParser::CLAWPARTICLE;
+				}
+			}
+		}
+
 	}
 	return returned;
 }

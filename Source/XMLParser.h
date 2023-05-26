@@ -20,11 +20,37 @@ struct ResourceInfo
 {
 	std::vector< Resource> Resources;
 };
+struct EffectConfig
+{
+	std::string REffect_Name1;
+	std::string LEffect_Name1;
+};
 struct Motion {
 	std::string MotionName;
 	std::string FileName;
+	float MotionBlendTimeS;
+	float MotionBlendTimeE;
+	float MotionBlendTimeEIdle;
+	float MotionMoveSpeedRatio;
+	float MotionMoveSpeedRatio_Y;
+	float MotionMoveSpeedRatioFrameStart_1;
+	float MotionMoveSpeedRatioFrame_1;
+	float MotionMoveSpeedRatioFrameY_1;
 	float MotionFirstSpeed;
+	float MiddleSpeed;
+	float EndSpeed;
+	int MotionSpeed_FirstFrame;
+	int MotionSpeed_MiddleFrame;
+	int MotionSpeed_EndFrame;
+	std::string AttackScope;
+	float DontCatchTime;
+	bool DontJump;
+	int ShakeCameraStartFrame;
+	float GroundHeightRepair;
+	std::string MoveType;
+
 	std::string ComposedFileName;
+	EffectConfig Effect;
 };
 struct WerehogAttackNew
 {
@@ -63,6 +89,7 @@ public:
 	static std::vector<WerehogAttackNew> attacks;
 	static std::vector<WerehogAttackNew> starterAttacks;
 	static std::vector<Motion> animationTable;
+	static std::string CLAWPARTICLE;
 
 
 };
