@@ -197,7 +197,7 @@
       <PrecompiledHeaderFile Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Pch.h</PrecompiledHeaderFile>
     </ClCompile>
     <ClCompile Include="Sonic.cpp" />
-    <ClCompile Include="TemporaryRigidbodyStuff.cpp" />
+    <ClCompile Include="Temporary.cpp" />
     <ClCompile Include="Testing.cpp" />
     <ClCompile Include="XMLParser.cpp" />
   </ItemGroup>
@@ -209,6 +209,7 @@
     <ClInclude Include="EnemyBase.h" />
     <ClInclude Include="Pch.h" />
     <ClInclude Include="Sonic.h" />
+    <ClInclude Include="Temporary.h" />
     <ClInclude Include="Testing.h" />
     <ClInclude Include="XMLParser.h" />
   </ItemGroup>

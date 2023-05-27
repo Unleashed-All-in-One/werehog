@@ -65,19 +65,7 @@ namespace Sonic
 		}
 	};
 }
-class CTestState : public Sonic::Player::CPlayerSpeedContext::CStateSpeedBase
-{
-public:
-	static constexpr const char* ms_StateName = "Test";
 
-	void UpdateState() override
-	{
-		auto context = GetContext();  // don't need to use "This," because we ARE in a class method right now, not a hook.
-
-		/* Code that does some shit with sonic here */
-
-	}
-};
 //"Index1_R" :
 //"Middle1_R"
 //"Pinky1_R" :
@@ -175,7 +163,70 @@ enum WerehogState
 	Guard
 };
 WerehogState currentState;
+std::string GetStateNameFromTable(std::string in)
+{
+	for (size_t i = 0; i < XMLParser::animationTable.size(); i++)
+	{
+		if (XMLParser::animationTable[i].MotionName == in)
+			return XMLParser::animationTable[i].FileName;
+	}
+}
+Motion GetMotionFromName(std::string in)
+{
+	for (size_t i = 0; i < XMLParser::animationTable.size(); i++)
+	{
+		if (XMLParser::animationTable[i].MotionName == in)
+			return XMLParser::animationTable[i];
+	}
+}
 
+class CStateAttackAction_byList_Posture : public Sonic::Player::CPlayerSpeedPosture3DCommon
+{
+public:
+	static constexpr const char* ms_StateName = "Evil_AttackAction_byList";
+
+	CStateAttackAction_byList_Posture(const bb_null_ctor&) : CPlayerSpeedPosture3DCommon(bb_null_ctor{}) {}
+	CStateAttackAction_byList_Posture()
+	{
+		*(int*)this = 0x016D3B6C;
+	}
+	CStateAttackAction_byList_Posture(const Hedgehog::Base::CSharedString& name)
+	{
+		*(int*)this = 0x016D3B6C;
+	}
+
+	void UpdateState() override
+	{}
+};
+class CStateAttackAction_byList : public Sonic::Player::CPlayerSpeedContext::CStateSpeedBase
+{
+	float ms_LastFrame;
+public:
+	static constexpr const char* ms_StateName = "Evil_AttackAction_byList";
+
+	void EnterState() override
+	{
+		ms_LastFrame = -1;
+	}
+	void UpdateState() override
+	{
+		auto context = GetContext();  // don't need to use "This," because we ARE in a class method right now, not a hook.
+
+		const auto spAnimInfo = boost::make_shared<Sonic::Message::MsgGetAnimationInfo>();
+		context->m_pPlayer->SendMessageImm(context->m_pPlayer->m_ActorID, spAnimInfo);
+		//if it isnt playing the anim for some reason, force it to play now
+		if(std::strstr(spAnimInfo->m_Name.c_str(), GetStateNameFromTable(lastAttackName).c_str()) == nullptr)
+			context->ChangeAnimation(GetStateNameFromTable(lastAttackName).c_str());
+		DebugDrawText::log(std::format("CSTATEATTACKACTION_AnimFrame = {0}", spAnimInfo->m_Frame).c_str(),0);
+
+		//if the current anim is playing and the frame of it is still the same after 2 frames, it means the animation has ended, change states.
+		if (std::strstr(spAnimInfo->m_Name.c_str(), GetStateNameFromTable(lastAttackName).c_str()) != nullptr && spAnimInfo->m_Frame == ms_LastFrame)
+			context->ChangeState("Stand");
+
+		ms_LastFrame = spAnimInfo->m_Frame;
+
+	}
+};
 
 // Func for adding the test state.
 // Fun fact: declaring and assigning a STATIC variable in a func like this will only do this *once.*
@@ -186,23 +237,34 @@ void AddTestState(Sonic::Player::CPlayerSpeedContext* context)
 
 	if (!added)
 	{
-		context->m_pPlayer->m_StateMachine.RegisterStateFactory<CTestState>();
+		context->m_pPlayer->m_StateMachine.RegisterStateFactory<CStateAttackAction_byList>();
 		added = true;
 	}
 }
 
-void AddImpulse(CVector position, CVector impulse, ImpulseType type, bool relative)
+void AddImpulse(CVector impulse, bool relative)
 {
-	alignas(16) MsgApplyImpulse message {};
-	message.m_position = position;
-	message.m_impulse = impulse;
-	message.m_impulseType = type;
-	message.m_outOfControl = 0.0f;
-	message.m_notRelative = !relative;
-	message.m_snapPosition = false;
-	message.m_pathInterpolate = false;
-	message.m_alwaysMinusOne = -1.0f;
-	Common::ApplyPlayerApplyImpulse(message);
+	auto context = Sonic::Player::CPlayerSpeedContext::GetInstance();
+	if (!relative)
+	{
+		context->m_Velocity = impulse;
+		return;
+	}
+	else
+	{
+		context->m_Velocity += impulse;
+		return;
+	}
+	//alignas(16) MsgApplyImpulse message {};
+	//message.m_position = position;
+	//message.m_impulse = impulse;
+	//message.m_impulseType = type;
+	//message.m_outOfControl = 0.0f;
+	//message.m_notRelative = !relative;
+	//message.m_snapPosition = false;
+	//message.m_pathInterpolate = false;
+	//message.m_alwaysMinusOne = -1.0f;
+	//Common::ApplyPlayerApplyImpulse(message);
 }
 void AddJumpThrust(CSonicContext* sonicContext, bool Condition)
 {
@@ -229,22 +291,7 @@ double calculateDistance(const std::vector<EKeyState>& array1, const std::vector
 
 	return std::sqrt(sum);
 }
-std::string GetStateNameFromTable(std::string in)
-{
-	for (size_t i = 0; i < XMLParser::animationTable.size(); i++)
-	{
-		if (XMLParser::animationTable[i].MotionName == in)
-			return XMLParser::animationTable[i].FileName;
-	}
-}
-Motion GetMotionFromName(std::string in)
-{
-	for (size_t i = 0; i < XMLParser::animationTable.size(); i++)
-	{
-		if (XMLParser::animationTable[i].MotionName == in)
-			return XMLParser::animationTable[i];
-	}
-}
+
 void PlayAnim(std::string name)
 {
 	const auto playerContext = Sonic::Player::CPlayerSpeedContext::GetInstance();
@@ -438,8 +485,11 @@ void ExecuteAttackCommand(std::string attack, int attackIndex, bool starter = fa
 			break;
 		}
 	}
-	AddImpulse(playerContext->m_spMatrixNode->m_Transform.m_Position, (playerContext->m_spMatrixNode->m_Transform.m_Rotation *Eigen::Vector3f::UnitZ()) * 10 * GetMotionFromName(attack).MotionMoveSpeedRatio, ImpulseType::None, true);
-	playerContext->ChangeState("Stand");
+	DebugDrawText::log((std::string("MotionSpeedRatio multiplied: ") +std::to_string((GetMotionFromName(attack).MotionMoveSpeedRatio) * 10)).c_str(), 5);
+	DebugDrawText::log((std::string("MotionSpeedRatio: ") +std::to_string(GetMotionFromName(attack).MotionMoveSpeedRatio)).c_str(), 5);
+	//This->m_StateMachine.ChangeState<CTestState>();
+	playerContext->m_pPlayer->m_StateMachine.ChangeState<CStateAttackAction_byList>();
+	AddImpulse((playerContext->m_spMatrixNode->m_Transform.m_Rotation * Eigen::Vector3f::UnitZ()) * ((GetMotionFromName(attack).MotionMoveSpeedRatio) * 10), true);
 	sound.reset();
 	lastMusicCue = resourcelist[resourceIndex].Params.Cue;
 	Common::PlaySoundStaticCueName(sound, Hedgehog::base::CSharedString(resourcelist[resourceIndex].Params.Cue.c_str()));
@@ -714,7 +764,7 @@ HOOK(void, __fastcall, SetClassicMaxVelocity, 0x00DC2020, CSonicContext* This)
 	}
 }
 //_DWORD *__thiscall Sonic::Player::CSonicStateWalk::Begin(int this)
-HOOK(void, __fastcall, StandCalc,0x00DBA1D0, int* This)
+HOOK(void, __fastcall, StandCalc,0x00DED4E0, int* This)
 {
 	if (BlueBlurCommon::IsClassic() && timerAttack < timerAttackMax && timerCombo < timerComboMax)
 	{
@@ -726,11 +776,8 @@ HOOK(void, __fastcall, StandCalc,0x00DBA1D0, int* This)
 		originalStandCalc(This);
 }
 //void __thiscall sub_DB9F90(CTempState *this)
-
-
 HOOK(void, __fastcall, CHudSonicStageUpdateParallel, 0x1098A50, Sonic::CGameObject* This, void* Edx, const hh::fnd::SUpdateInfo& in_rUpdateInfo)
-{
-	
+{	
 	originalCHudSonicStageUpdateParallel(This, Edx, in_rUpdateInfo);
 	if (!BlueBlurCommon::IsClassic())
 	{
@@ -940,11 +987,11 @@ HOOK(void, __fastcall, _CPlayerSpeedUpdateParallel, 0xE6BF20, Sonic::Player::CPl
 {
 	original_CPlayerSpeedUpdateParallel(This, _, updateInfo);
 
-	// Test our state when we press Y
-	if (playingAttack)
-	{
-		This->m_StateMachine.ChangeState<CTestState>();
-	}
+	//// Test our state when we press Y
+	//if (playingAttack)
+	//{
+	//	This->m_StateMachine.ChangeState<CTestState>();
+	//}
 }
 
 // Call the function when we initialize everything.
