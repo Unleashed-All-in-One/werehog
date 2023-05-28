@@ -101,30 +101,48 @@ Motion ParseMotionNode(rapidxml::xml_node<>* node)
 	for (rapidxml::xml_node<>* child = node->first_node(); child; child = child->next_sibling())
 	{
 		const char* name = child->name();
-		std::stringstream ss(child->value());
-		if (isPartOf(name, "MotionName"))
+		std::string nameS = std::string(name);
+		if (nameS == "MotionName")
 			returned.MotionName = child->value();
-		if (isPartOf(name, "FileName"))
+		if (nameS == "FileName")
 			returned.FileName = child->value();
-		if (isPartOf(name, "MotionBlendTimeS"))
+		if (nameS == "MotionBlendTimeS")
 			returned.MotionBlendTimeS = std::stof(child->value());
-		if (isPartOf(name, "MotionBlendTimeE"))
+		if (nameS == "MotionBlendTimeE")
 			returned.MotionBlendTimeE = std::stof(child->value());
-		if (isPartOf(name, "MotionBlendTimeEIdle"))
+		if (nameS == "MotionBlendTimeEIdle")
 			returned.MotionBlendTimeEIdle = std::stof(child->value());
-		if (isPartOf(name, "MotionMoveSpeedRatio"))
+		if (nameS == "MotionMoveSpeedRatio")
 			returned.MotionMoveSpeedRatio = std::stof(child->value());
-		if (isPartOf(name, "MotionMoveSpeedRatio_Y"))
+		if (nameS == "MotionMoveSpeedRatio_Y")
 			returned.MotionMoveSpeedRatio_Y = std::stof(child->value());
-		if (isPartOf(name, "MotionMoveSpeedRatioFrameStart_1"))
-			returned.MotionMoveSpeedRatioFrameStart_1 = std::stof(child->value());
-		if (isPartOf(name, "MotionMoveSpeedRatioFrame_1"))
-			returned.MotionMoveSpeedRatioFrame_1 = std::stof(child->value());
-		if (isPartOf(name, "MotionMoveSpeedRatioFrameY_1"))
-			returned.MotionMoveSpeedRatioFrameY_1 = std::stof(child->value());
-		if (isPartOf(name, "MotionFirstSpeed")) //dont think about it too much
+		//21 because Unleashed caps it at 21
+		for (size_t i = 1; i < 21; i++)
+		{
+			//This is a custom struct, want to do this to make it easier to process it
+			if (returned.MotionMoveSpeedRatio_H.size() <= i)
+				returned.MotionMoveSpeedRatio_H.push_back({});
+			//Inserting at i-1 since it starts at 1
+			if (name == std::format("MotionMoveSpeedRatioFrameStart_{0}", i))
+			{
+				returned.MotionMoveSpeedRatio_H.at(i).FrameStart = std::stof(child->value());
+				returned.MotionMoveSpeedRatioFrameStart.insert(returned.MotionMoveSpeedRatioFrameStart.begin() + i - 1, std::stof(child->value()));
+			}
+			if (name == std::format("MotionMoveSpeedRatioFrame_{0}", i))
+			{
+				returned.MotionMoveSpeedRatio_H.at(i).FrameValue = std::stof(child->value());
+				returned.MotionMoveSpeedRatioFrame.insert(returned.MotionMoveSpeedRatioFrame.begin() + i - 1, std::stof(child->value()));
+			}
+			if (name == std::format("MotionMoveSpeedRatioFrameY_{0}", i))
+			{
+				returned.MotionMoveSpeedRatio_H.at(i).FrameValue_Y = std::stof(child->value());
+				returned.MotionMoveSpeedRatioFrameY.insert(returned.MotionMoveSpeedRatioFrameY.begin() + i - 1, std::stof(child->value()));
+			}
+		}
+		
+		if (name == "MotionFirstSpeed") //dont think about it too much
 			returned.MotionFirstSpeed = std::stof(child->value());
-		if (isPartOf(name, "Effect"))
+		if (name == "Effect")
 		{
 			for (rapidxml::xml_node<>* child2 = child->first_node(); child2; child2 = child2->next_sibling())
 			{
@@ -149,6 +167,7 @@ Motion ParseMotionNode(rapidxml::xml_node<>* node)
 		}
 
 	}
+	returned.MotionMoveSpeedRatio_H.erase(returned.MotionMoveSpeedRatio_H.begin());
 	return returned;
 }
 void RegisterAnims(std::vector<Motion>& vec, rapidxml::xml_node<>* nodeMotion)

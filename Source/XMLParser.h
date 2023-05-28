@@ -25,6 +25,12 @@ struct EffectConfig
 	std::string REffect_Name1;
 	std::string LEffect_Name1;
 };
+struct MoveRatioHelper
+{
+	float FrameStart;
+	float FrameValue;
+	float FrameValue_Y;
+};
 struct Motion {
 	std::string MotionName;
 	std::string FileName;
@@ -33,9 +39,11 @@ struct Motion {
 	float MotionBlendTimeEIdle;
 	float MotionMoveSpeedRatio;
 	float MotionMoveSpeedRatio_Y;
-	float MotionMoveSpeedRatioFrameStart_1;
-	float MotionMoveSpeedRatioFrame_1;
-	float MotionMoveSpeedRatioFrameY_1;
+	std::vector< MoveRatioHelper> MotionMoveSpeedRatio_H;
+	std::vector< MoveRatioHelper> MotionMoveSpeedRatio_H_Y;
+	std::vector<float> MotionMoveSpeedRatioFrameStart;
+	std::vector<float> MotionMoveSpeedRatioFrame;
+	std::vector<float> MotionMoveSpeedRatioFrameY;
 	float MotionFirstSpeed;
 	float MiddleSpeed;
 	float EndSpeed;

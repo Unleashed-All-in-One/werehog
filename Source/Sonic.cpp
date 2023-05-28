@@ -86,6 +86,7 @@ WerehogAttackNew attackCache;
 bool canJump;
 int jumpcount;
 int comboAttackIndex;
+int lastAttackIndex;
 bool isUsingShield;
 float timerCombo;
 float timerAttack;
@@ -200,30 +201,64 @@ public:
 };
 class CStateAttackAction_byList : public Sonic::Player::CPlayerSpeedContext::CStateSpeedBase
 {
-	float ms_LastFrame;
+	int m_LastActionIndex;
+	float m_LastFrame;
+	Motion m_CurrentMotion;
+	//something i like to call a little hack
+	CVector ms_InitialVelocity;
+	CVector ms_AlteredVelocity;
+	static constexpr float ms_DecelerationForce = 0.9f;
+	
 public:
 	static constexpr const char* ms_StateName = "Evil_AttackAction_byList";
-
+	
+	CVector GetForward()
+	{
+		auto context = GetContext();
+		return (context->m_spMatrixNode->m_Transform.m_Rotation * Eigen::Vector3f::UnitZ());
+	}
 	void EnterState() override
 	{
-		ms_LastFrame = -1;
+		auto context = GetContext();
+		m_LastFrame = -1;
+		m_LastActionIndex = 0;
+		ms_InitialVelocity = context->m_Velocity;
+		m_CurrentMotion = GetMotionFromName(lastAttackName);
+		//
+		ms_AlteredVelocity = GetForward() * (m_CurrentMotion.MotionMoveSpeedRatio * context->m_MaxVelocity);
+		/*if(m_CurrentMotion.MotionMoveSpeedRatioFrameStart.at(m_LastActionIndex) == -1)
+			ms_AlteredVelocity = GetForward() * m_CurrentMotion.MotionMoveSpeedRatioFrame.at(m_LastActionIndex);*/
 	}
 	void UpdateState() override
 	{
-		auto context = GetContext();  // don't need to use "This," because we ARE in a class method right now, not a hook.
-
+		auto context = GetContext();
 		const auto spAnimInfo = boost::make_shared<Sonic::Message::MsgGetAnimationInfo>();
 		context->m_pPlayer->SendMessageImm(context->m_pPlayer->m_ActorID, spAnimInfo);
+		DebugDrawText::log(std::format("CSTATEATTACKACTION_AnimFrame = {0}", spAnimInfo->m_Frame).c_str(), 0);
 		//if it isnt playing the anim for some reason, force it to play now
 		if(std::strstr(spAnimInfo->m_Name.c_str(), GetStateNameFromTable(lastAttackName).c_str()) == nullptr)
 			context->ChangeAnimation(GetStateNameFromTable(lastAttackName).c_str());
-		DebugDrawText::log(std::format("CSTATEATTACKACTION_AnimFrame = {0}", spAnimInfo->m_Frame).c_str(),0);
 
 		//if the current anim is playing and the frame of it is still the same after 2 frames, it means the animation has ended, change states.
-		if (std::strstr(spAnimInfo->m_Name.c_str(), GetStateNameFromTable(lastAttackName).c_str()) != nullptr && spAnimInfo->m_Frame == ms_LastFrame)
+		if (std::strstr(spAnimInfo->m_Name.c_str(), GetStateNameFromTable(lastAttackName).c_str()) != nullptr && spAnimInfo->m_Frame == m_LastFrame)
 			context->ChangeState("Stand");
 
-		ms_LastFrame = spAnimInfo->m_Frame;
+
+		
+			if (m_CurrentMotion.MotionMoveSpeedRatio_H.size() > m_LastActionIndex)
+			{
+				if ((spAnimInfo->m_Frame == m_CurrentMotion.MotionMoveSpeedRatio_H.at(m_LastActionIndex).FrameStart	)
+					/*|| m_CurrentMotion.MotionMoveSpeedRatioFrameStart.at(m_LastActionIndex) == -1*/)
+				{
+					DebugDrawText::log(std::format("CSTATEATTACKACTION_MotionMoveSpeedRatioFrameStart = {0} ind:{1}", spAnimInfo->m_Frame, m_LastActionIndex).c_str(), 5);
+					ms_AlteredVelocity = ms_InitialVelocity + (GetForward() * m_CurrentMotion.MotionMoveSpeedRatio_H.at(m_LastActionIndex).FrameValue);
+					ms_AlteredVelocity = CVector(ms_AlteredVelocity.x(), ms_AlteredVelocity.y() + m_CurrentMotion.MotionMoveSpeedRatio_H.at(m_LastActionIndex).FrameValue_Y, ms_AlteredVelocity.z());
+					m_LastActionIndex++;
+				}
+			}
+			ms_AlteredVelocity = CVector(ms_AlteredVelocity.x() * ms_DecelerationForce, 0, ms_AlteredVelocity.z() * ms_DecelerationForce);
+			context->m_Velocity = ms_AlteredVelocity;
+		m_LastFrame = spAnimInfo->m_Frame;
 
 	}
 };
@@ -458,7 +493,7 @@ std::string lastMusicCue;
 
 void ExecuteAttackCommand(std::string attack, int attackIndex, bool starter = false)
 {
-	//comboAttackIndex = attackIndex;
+	lastAttackIndex = attackIndex;
 	auto playerContext = Sonic::Player::CPlayerSpeedContext::GetInstance();
 	Common::SonicContextSetCollision(SonicCollision::TypeSonicSquatKick, true);
 	Common::CreatePlayerSupportShockWave(playerContext->m_spMatrixNode->m_Transform.m_Position, 0.15f, 5, 0.1f);
