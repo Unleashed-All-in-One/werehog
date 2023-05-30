@@ -140,9 +140,13 @@ Motion ParseMotionNode(rapidxml::xml_node<>* node)
 			}
 		}
 		
-		if (name == "MotionFirstSpeed") //dont think about it too much
-			returned.MotionFirstSpeed = std::stof(child->value());
-		if (name == "Effect")
+		if (nameS == "MotionFirstSpeed") //dont think about it too much
+			returned.MotionFirstSpeed = std::stof(std::string(child->value()));
+		if (nameS == "MotionSpeed_FirstFrame") //dont think about it too much
+			returned.MotionSpeed_FirstFrame = std::stof(std::string(child->value()));
+		if (nameS == "MotionSpeed_MiddleFrame") //dont think about it too much
+			returned.MotionSpeed_MiddleFrame = std::stof(std::string(child->value()));
+		if (nameS == "Effect")
 		{
 			for (rapidxml::xml_node<>* child2 = child->first_node(); child2; child2 = child2->next_sibling())
 			{

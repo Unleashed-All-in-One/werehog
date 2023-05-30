@@ -93,7 +93,7 @@ float timerAttack;
 float timerComboMax = 0.75f;
 float timerDamage = 0.3f;
 float timerDamageMax = 0.3f;
-float timerAttackMax = 0.45f;
+float timerAttackMax = 0.35f;
 int comboProgress = 0;
 float lifeWerehog = 5.0f;
 bool unleashMode;
@@ -180,13 +180,23 @@ Motion GetMotionFromName(std::string in)
 			return XMLParser::animationTable[i];
 	}
 }
-
+void SetsHighSpeedVectorAndAppliesGravity(void* doc)
+{
+	uint32_t func = 0x00E4F100;
+	DWORD* result;
+	__asm
+	{
+		/*mov     eax, doc*/
+		push doc
+		call func
+	};
+};
 class CStateAttackAction_byList_Posture : public Sonic::Player::CPlayerSpeedPosture3DCommon
 {
 public:
-	static constexpr const char* ms_StateName = "Evil_AttackAction_byList";
+	static constexpr const char* ms_StateName = "Evil_AttackAction_byListP";
 
-	CStateAttackAction_byList_Posture(const bb_null_ctor&) : CPlayerSpeedPosture3DCommon(bb_null_ctor{}) {}
+	/*CStateAttackAction_byList_Posture(const bb_null_ctor&) : CPlayerSpeedPosture3DCommon(bb_null_ctor{}) {}
 	CStateAttackAction_byList_Posture()
 	{
 		*(int*)this = 0x016D3B6C;
@@ -194,11 +204,29 @@ public:
 	CStateAttackAction_byList_Posture(const Hedgehog::Base::CSharedString& name)
 	{
 		*(int*)this = 0x016D3B6C;
-	}
+	}*/
 
+	void EnterState() override
+	{
+	}
+	Sonic::Player::CPlayerSpeedContext* GetContext() const
+	{
+		return static_cast<Sonic::Player::CPlayerSpeedContext*>(m_pContext);
+	}
 	void UpdateState() override
-	{}
+	{
+		auto context = GetContext();
+		printf("Posture");
+		const auto playerContext = Sonic::Player::CPlayerSpeedContext::GetInstance();
+		playerContext->m_spMatrixNode->m_Transform.SetPosition(playerContext->m_spMatrixNode->m_Transform.m_Position += (playerContext->m_Velocity/3));
+		//int __stdcall PostMovement(CSonicContext *sonicContext)
+		FUNCTION_PTR(int, __stdcall, PostMov, 0x00E63530, void* context);
+		PostMov(playerContext);
+		//SetsHighSpeedVectorAndAppliesGravity(playerContext);
+	}
 };
+
+
 class CStateAttackAction_byList : public Sonic::Player::CPlayerSpeedContext::CStateSpeedBase
 {
 	int m_LastActionIndex;
@@ -207,7 +235,9 @@ class CStateAttackAction_byList : public Sonic::Player::CPlayerSpeedContext::CSt
 	//something i like to call a little hack
 	CVector ms_InitialVelocity;
 	CVector ms_AlteredVelocity;
-	static constexpr float ms_DecelerationForce = 0.9f;
+	std::string m_Posture;
+	static constexpr float ms_DecelerationForce = 0.7372071f;
+	static constexpr float ms_AccelerationForce = 1.4285715f; //pulled from unleashed
 	
 public:
 	static constexpr const char* ms_StateName = "Evil_AttackAction_byList";
@@ -223,14 +253,15 @@ public:
 		m_LastFrame = -1;
 		m_LastActionIndex = 0;
 		ms_InitialVelocity = context->m_Velocity;
-		m_CurrentMotion = GetMotionFromName(lastAttackName);
 		//
-		ms_AlteredVelocity = GetForward() * (m_CurrentMotion.MotionMoveSpeedRatio * context->m_MaxVelocity);
+		ms_AlteredVelocity = ms_InitialVelocity;
+		context->m_pPlayer->m_PostureStateMachine.ChangeState<CStateAttackAction_byList_Posture>();
 		/*if(m_CurrentMotion.MotionMoveSpeedRatioFrameStart.at(m_LastActionIndex) == -1)
 			ms_AlteredVelocity = GetForward() * m_CurrentMotion.MotionMoveSpeedRatioFrame.at(m_LastActionIndex);*/
 	}
 	void UpdateState() override
 	{
+		m_CurrentMotion = GetMotionFromName(lastAttackName);
 		auto context = GetContext();
 		const auto spAnimInfo = boost::make_shared<Sonic::Message::MsgGetAnimationInfo>();
 		context->m_pPlayer->SendMessageImm(context->m_pPlayer->m_ActorID, spAnimInfo);
@@ -241,23 +272,37 @@ public:
 
 		//if the current anim is playing and the frame of it is still the same after 2 frames, it means the animation has ended, change states.
 		if (std::strstr(spAnimInfo->m_Name.c_str(), GetStateNameFromTable(lastAttackName).c_str()) != nullptr && spAnimInfo->m_Frame == m_LastFrame)
+		{
+			context->m_pPlayer->m_PostureStateMachine.ChangeState("Standard");
 			context->ChangeState("Stand");
+		}
 
 
-		
-			if (m_CurrentMotion.MotionMoveSpeedRatio_H.size() > m_LastActionIndex)
-			{
-				if ((spAnimInfo->m_Frame == m_CurrentMotion.MotionMoveSpeedRatio_H.at(m_LastActionIndex).FrameStart	)
-					/*|| m_CurrentMotion.MotionMoveSpeedRatioFrameStart.at(m_LastActionIndex) == -1*/)
-				{
-					DebugDrawText::log(std::format("CSTATEATTACKACTION_MotionMoveSpeedRatioFrameStart = {0} ind:{1}", spAnimInfo->m_Frame, m_LastActionIndex).c_str(), 5);
-					ms_AlteredVelocity = ms_InitialVelocity + (GetForward() * m_CurrentMotion.MotionMoveSpeedRatio_H.at(m_LastActionIndex).FrameValue);
-					ms_AlteredVelocity = CVector(ms_AlteredVelocity.x(), ms_AlteredVelocity.y() + m_CurrentMotion.MotionMoveSpeedRatio_H.at(m_LastActionIndex).FrameValue_Y, ms_AlteredVelocity.z());
-					m_LastActionIndex++;
-				}
-			}
-			ms_AlteredVelocity = CVector(ms_AlteredVelocity.x() * ms_DecelerationForce, 0, ms_AlteredVelocity.z() * ms_DecelerationForce);
+		if (spAnimInfo->m_Frame >= m_CurrentMotion.MotionSpeed_FirstFrame && spAnimInfo->m_Frame < m_CurrentMotion.MotionSpeed_MiddleFrame)
+		{
+			ms_AlteredVelocity = GetForward() * (m_CurrentMotion.MotionMoveSpeedRatio);
 			context->m_Velocity = ms_AlteredVelocity;
+		}
+		else
+			context->m_Velocity = ms_InitialVelocity;
+		if (spAnimInfo->m_Frame >= m_CurrentMotion.MotionSpeed_MiddleFrame)
+		{
+			context->m_Velocity = ms_AlteredVelocity;
+		}
+		context->m_Velocity = ms_AlteredVelocity;
+		ms_AlteredVelocity = CVector(ms_AlteredVelocity.x() * ms_DecelerationForce, 0, ms_AlteredVelocity.z() * ms_DecelerationForce);
+			//if (m_CurrentMotion.MotionMoveSpeedRatio_H.size() > m_LastActionIndex)
+			//{
+			//	if ((spAnimInfo->m_Frame == m_CurrentMotion.MotionMoveSpeedRatio_H.at(m_LastActionIndex).FrameStart	)
+			//		/*|| m_CurrentMotion.MotionMoveSpeedRatioFrameStart.at(m_LastActionIndex) == -1*/)
+			//	{
+			//		DebugDrawText::log(std::format("CSTATEATTACKACTION_MotionMoveSpeedRatioFrameStart = {0} ind:{1}", spAnimInfo->m_Frame, m_LastActionIndex).c_str(), 5);
+			//		ms_AlteredVelocity = ms_InitialVelocity + (GetForward() * m_CurrentMotion.MotionMoveSpeedRatio_H.at(m_LastActionIndex).FrameValue);
+			//		ms_AlteredVelocity = CVector(ms_AlteredVelocity.x(), ms_AlteredVelocity.y() + m_CurrentMotion.MotionMoveSpeedRatio_H.at(m_LastActionIndex).FrameValue_Y, ms_AlteredVelocity.z());
+			//		m_LastActionIndex++;
+			//	}
+			//}
+			
 		m_LastFrame = spAnimInfo->m_Frame;
 
 	}
@@ -273,6 +318,7 @@ void AddTestState(Sonic::Player::CPlayerSpeedContext* context)
 	if (!added)
 	{
 		context->m_pPlayer->m_StateMachine.RegisterStateFactory<CStateAttackAction_byList>();
+		context->m_pPlayer->m_PostureStateMachine.RegisterStateFactory<CStateAttackAction_byList_Posture>();
 		added = true;
 	}
 }
@@ -520,9 +566,6 @@ void ExecuteAttackCommand(std::string attack, int attackIndex, bool starter = fa
 			break;
 		}
 	}
-	DebugDrawText::log((std::string("MotionSpeedRatio multiplied: ") +std::to_string((GetMotionFromName(attack).MotionMoveSpeedRatio) * 10)).c_str(), 5);
-	DebugDrawText::log((std::string("MotionSpeedRatio: ") +std::to_string(GetMotionFromName(attack).MotionMoveSpeedRatio)).c_str(), 5);
-	//This->m_StateMachine.ChangeState<CTestState>();
 	playerContext->m_pPlayer->m_StateMachine.ChangeState<CStateAttackAction_byList>();
 	AddImpulse((playerContext->m_spMatrixNode->m_Transform.m_Rotation * Eigen::Vector3f::UnitZ()) * ((GetMotionFromName(attack).MotionMoveSpeedRatio) * 10), true);
 	sound.reset();

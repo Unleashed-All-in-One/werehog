@@ -47,8 +47,8 @@ struct Motion {
 	float MotionFirstSpeed;
 	float MiddleSpeed;
 	float EndSpeed;
-	int MotionSpeed_FirstFrame;
-	int MotionSpeed_MiddleFrame;
+	float MotionSpeed_FirstFrame;
+	float MotionSpeed_MiddleFrame;
 	int MotionSpeed_EndFrame;
 	std::string AttackScope;
 	float DontCatchTime;
