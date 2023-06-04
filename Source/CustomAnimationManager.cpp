@@ -26,7 +26,7 @@ HOOK(void*, __cdecl, InitializeSonicAnimationList, 0x01281D50)
 
             entry.name = CUSTOM_ANIMATIONS[animIndex].stateName.c_str();
             entry.fileName = CUSTOM_ANIMATIONS[animIndex].fileName.c_str();
-            entry.speed = 1.0f;
+            entry.speed = CUSTOM_ANIMATIONS[animIndex].speed;
             entry.playbackType = 1;
             entry.field10 = 0;
             entry.field14 = -1.0f;
@@ -65,7 +65,7 @@ HOOK(void, __fastcall, CSonicCreateAnimationStates, 0x00DDF1C0, void* This, void
         createAnimationState(A2, animationState, animName, animName);
     }
 }
-void CustomAnimationManager::RegisterAnimation(std::string stateName, std::string fileName)
+void CustomAnimationManager::RegisterAnimation(std::string stateName, std::string fileName, float speed)
 {
     if (initialized)
         printf("\nYou cannot register animations after initialization!");
@@ -74,6 +74,7 @@ void CustomAnimationManager::RegisterAnimation(std::string stateName, std::strin
         AnimationEntry entry =  AnimationEntry();
         entry.fileName = fileName;
         entry.stateName = stateName;
+        entry.speed = speed;
         CUSTOM_ANIMATIONS.push_back(entry);
         printf(std::format("\nRegistered animation ({0}, {1})", stateName, fileName).c_str());
     }

@@ -355,10 +355,10 @@ namespace Sonic::Player
             return *(Hedgehog::Math::CVector*)result;
         }
 
-        inline Hedgehog::Math::CVector GetHorizontalVelocityDirection()
+        /*inline Hedgehog::Math::CVector GetHorizontalVelocityDirection()
         {
             return GetHorizontalVelocity().normalizedSafe();
-        }
+        }*/
 
         Hedgehog::Math::CVector __cdecl GetUpDirection()
         {
@@ -515,10 +515,10 @@ namespace Sonic::Player
             }
         }
 
-        inline void SetYawRotation(float angle, bool updateMatrix = true)
+        /*inline void SetYawRotation(float angle, bool updateMatrix = true)
         {
             SetYawRotation(Hedgehog::Math::CQuaternion::FromAngleAxis(angle, Hedgehog::Math::CVector::Up()));
-        }
+        }*/
 
         inline void AddVelocity(const Hedgehog::Math::CVector& vec)
         {

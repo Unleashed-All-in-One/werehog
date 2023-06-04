@@ -88,7 +88,9 @@ int jumpcount;
 int comboAttackIndex;
 int lastAttackIndex;
 bool isUsingShield;
+float deltaTime;
 float timerCombo;
+float attackVelocityDivider = 1.5f;
 float timerAttack;
 float timerComboMax = 0.75f;
 float timerDamage = 0.3f;
@@ -164,6 +166,13 @@ enum WerehogState
 	Guard
 };
 WerehogState currentState;
+
+bool IsCurrentAnimationName(std::string in)
+{
+	auto playerContext = Sonic::Player::CPlayerSpeedContext::GetInstance();
+	const auto spAnimInfo = boost::make_shared<Sonic::Message::MsgGetAnimationInfo>();
+	playerContext->m_pPlayer->SendMessageImm(playerContext->m_pPlayer->m_ActorID, spAnimInfo);
+}
 std::string GetStateNameFromTable(std::string in)
 {
 	for (size_t i = 0; i < XMLParser::animationTable.size(); i++)
@@ -196,16 +205,18 @@ class CStateAttackAction_byList_Posture : public Sonic::Player::CPlayerSpeedPost
 public:
 	static constexpr const char* ms_StateName = "Evil_AttackAction_byListP";
 
-	/*CStateAttackAction_byList_Posture(const bb_null_ctor&) : CPlayerSpeedPosture3DCommon(bb_null_ctor{}) {}
-	CStateAttackAction_byList_Posture()
-	{
-		*(int*)this = 0x016D3B6C;
-	}
-	CStateAttackAction_byList_Posture(const Hedgehog::Base::CSharedString& name)
-	{
-		*(int*)this = 0x016D3B6C;
-	}*/
 
+	__declspec(noinline) void DoGravityThing(Sonic::Player::CPlayerSpeedContext* context, float deltaTime, float multiplier)
+	{
+		uint32_t func = 0x00E59C30;
+		__asm
+		{
+			mov eax, context
+			push multiplier
+			push deltaTime
+			call func
+		}
+	}
 	void EnterState() override
 	{
 	}
@@ -216,12 +227,13 @@ public:
 	void UpdateState() override
 	{
 		auto context = GetContext();
-		printf("Posture");
 		const auto playerContext = Sonic::Player::CPlayerSpeedContext::GetInstance();
-		playerContext->m_spMatrixNode->m_Transform.SetPosition(playerContext->m_spMatrixNode->m_Transform.m_Position += (playerContext->m_Velocity/3));
+		playerContext->m_spMatrixNode->m_Transform.SetPosition(playerContext->m_spMatrixNode->m_Transform.m_Position += (playerContext->m_Velocity / attackVelocityDivider));
 		//int __stdcall PostMovement(CSonicContext *sonicContext)
+
 		FUNCTION_PTR(int, __stdcall, PostMov, 0x00E63530, void* context);
-		PostMov(playerContext);
+		BB_FUNCTION_PTR(void, __thiscall, MovementRoutine, 0x00E37FD0, void* This);
+		//DoGravityThing(playerContext, deltaTime, PI);
 		//SetsHighSpeedVectorAndAppliesGravity(playerContext);
 	}
 };
@@ -236,12 +248,12 @@ class CStateAttackAction_byList : public Sonic::Player::CPlayerSpeedContext::CSt
 	CVector ms_InitialVelocity;
 	CVector ms_AlteredVelocity;
 	std::string m_Posture;
-	static constexpr float ms_DecelerationForce = 0.7372071f;
+	static constexpr float ms_DecelerationForce = 0.65f;
 	static constexpr float ms_AccelerationForce = 1.4285715f; //pulled from unleashed
-	
+
 public:
 	static constexpr const char* ms_StateName = "Evil_AttackAction_byList";
-	
+
 	CVector GetForward()
 	{
 		auto context = GetContext();
@@ -267,7 +279,7 @@ public:
 		context->m_pPlayer->SendMessageImm(context->m_pPlayer->m_ActorID, spAnimInfo);
 		DebugDrawText::log(std::format("CSTATEATTACKACTION_AnimFrame = {0}", spAnimInfo->m_Frame).c_str(), 0);
 		//if it isnt playing the anim for some reason, force it to play now
-		if(std::strstr(spAnimInfo->m_Name.c_str(), GetStateNameFromTable(lastAttackName).c_str()) == nullptr)
+		if (std::strstr(spAnimInfo->m_Name.c_str(), GetStateNameFromTable(lastAttackName).c_str()) == nullptr)
 			context->ChangeAnimation(GetStateNameFromTable(lastAttackName).c_str());
 
 		//if the current anim is playing and the frame of it is still the same after 2 frames, it means the animation has ended, change states.
@@ -280,7 +292,8 @@ public:
 
 		if (spAnimInfo->m_Frame >= m_CurrentMotion.MotionSpeed_FirstFrame && spAnimInfo->m_Frame < m_CurrentMotion.MotionSpeed_MiddleFrame)
 		{
-			ms_AlteredVelocity = GetForward() * (m_CurrentMotion.MotionMoveSpeedRatio);
+			ms_AlteredVelocity = GetForward() * (m_CurrentMotion.MotionMoveSpeedRatio / m_CurrentMotion.MotionMoveSpeedRatio_H[0].FrameValue);
+			//		
 			context->m_Velocity = ms_AlteredVelocity;
 		}
 		else
@@ -291,18 +304,18 @@ public:
 		}
 		context->m_Velocity = ms_AlteredVelocity;
 		ms_AlteredVelocity = CVector(ms_AlteredVelocity.x() * ms_DecelerationForce, 0, ms_AlteredVelocity.z() * ms_DecelerationForce);
-			//if (m_CurrentMotion.MotionMoveSpeedRatio_H.size() > m_LastActionIndex)
-			//{
-			//	if ((spAnimInfo->m_Frame == m_CurrentMotion.MotionMoveSpeedRatio_H.at(m_LastActionIndex).FrameStart	)
-			//		/*|| m_CurrentMotion.MotionMoveSpeedRatioFrameStart.at(m_LastActionIndex) == -1*/)
-			//	{
-			//		DebugDrawText::log(std::format("CSTATEATTACKACTION_MotionMoveSpeedRatioFrameStart = {0} ind:{1}", spAnimInfo->m_Frame, m_LastActionIndex).c_str(), 5);
-			//		ms_AlteredVelocity = ms_InitialVelocity + (GetForward() * m_CurrentMotion.MotionMoveSpeedRatio_H.at(m_LastActionIndex).FrameValue);
-			//		ms_AlteredVelocity = CVector(ms_AlteredVelocity.x(), ms_AlteredVelocity.y() + m_CurrentMotion.MotionMoveSpeedRatio_H.at(m_LastActionIndex).FrameValue_Y, ms_AlteredVelocity.z());
-			//		m_LastActionIndex++;
-			//	}
-			//}
-			
+		//if (m_CurrentMotion.MotionMoveSpeedRatio_H.size() > m_LastActionIndex)
+		//{
+		//	if ((spAnimInfo->m_Frame == m_CurrentMotion.MotionMoveSpeedRatio_H.at(m_LastActionIndex).FrameStart	)
+		//		/*|| m_CurrentMotion.MotionMoveSpeedRatioFrameStart.at(m_LastActionIndex) == -1*/)
+		//	{
+		//		DebugDrawText::log(std::format("CSTATEATTACKACTION_MotionMoveSpeedRatioFrameStart = {0} ind:{1}", spAnimInfo->m_Frame, m_LastActionIndex).c_str(), 5);
+		//		ms_AlteredVelocity = ms_InitialVelocity + (GetForward() * m_CurrentMotion.MotionMoveSpeedRatio_H.at(m_LastActionIndex).FrameValue);
+		//		ms_AlteredVelocity = CVector(ms_AlteredVelocity.x(), ms_AlteredVelocity.y() + m_CurrentMotion.MotionMoveSpeedRatio_H.at(m_LastActionIndex).FrameValue_Y, ms_AlteredVelocity.z());
+		//		m_LastActionIndex++;
+		//	}
+		//}
+
 		m_LastFrame = spAnimInfo->m_Frame;
 
 	}
@@ -384,10 +397,12 @@ void PlayAnim(std::string name)
 float GetVelocity()
 {
 	auto inputPtr = &Sonic::CInputState::GetInstance()->m_PadStates[Sonic::CInputState::GetInstance()->m_CurrentPadStateIndex];
-	if (inputPtr->IsDown(Sonic::eKeyState_RightTrigger))
-		return 25;
-	else
-		return 17;
+	if (currentState == WerehogState::Guard)
+		return 1;
+	if (currentState == WerehogState::Normal)
+		return 5.5f;
+	if (currentState == WerehogState::Dash)
+		return 12;
 }
 void RegisterInputs()
 {
@@ -442,7 +457,7 @@ void SpawnParticleOnHand(std::string glitterNameLeft, std::string glitterNameRig
 	///					     /  v  \
 	///						 boneless
 	///		
-	
+
 	const auto playerContext = Sonic::Player::CPlayerSpeedContext::GetInstance();
 	DespawnParticlesHand();
 	if (!boneless.empty())
@@ -478,7 +493,7 @@ void SpawnParticleOnHand(std::string glitterNameLeft, std::string glitterNameRig
 				Common::fCGlitterCreate(playerContext->m_pPlayer->m_spContext.get(), punch, &hand, glitterNameLeft.c_str(), 1);
 		}
 	}
-	if(!glitterNameRight.empty())
+	if (!glitterNameRight.empty())
 	{
 		if (XMLParser::CLAWPARTICLE == glitterNameRight)
 		{
@@ -531,7 +546,7 @@ void PlaySoundStaticCueName2(SharedPtrTypeless& soundHandle, Hedgehog::base::CSh
 	uint32_t* syncObject = *(uint32_t**)0x1E79044;
 	if (syncObject)
 	{
-		FUNCTION_PTR(void*, __thiscall, sub_75FA60, 0x75FB00, void* This, SharedPtrTypeless&, const Hedgehog::base::CSharedString& cueId, const CVector& a4);
+		FUNCTION_PTR(void*, __thiscall, sub_75FA60, 0x75FB00, void* This, SharedPtrTypeless&, const Hedgehog::base::CSharedString & cueId, const CVector & a4);
 		sub_75FA60((void*)syncObject[8], soundHandle, cueID, a4);
 	}
 }
@@ -596,7 +611,7 @@ void SearchThenExecute(std::string input, bool starter, Sonic::EKeyState state)
 		}
 	}
 	else
-	{	
+	{
 		for (size_t i = 0; i < XMLParser::attacks.size(); i++)
 		{
 			if (input == XMLParser::attacks[i].ActionName)
@@ -730,7 +745,7 @@ HOOK(void, __fastcall, CClassicSonicProcMsgDamage, 0xDEA340, Sonic::Player::CSon
 			originalCClassicSonicProcMsgDamage(This, _, in_rMsg);
 		}
 
-	}	
+	}
 }
 
 //HOOK(char, __fastcall, XButtonInput, 0x00DFDF20, DWORD* This)
@@ -793,7 +808,7 @@ HOOK(void, __fastcall, Jump_PlayAnimation, 0x01235250, int This)
 	{
 		const auto playerContext = Sonic::Player::CPlayerSpeedContext::GetInstance();
 		//Find a way to just change the sound with asm instead
-		Common::PlaySoundStatic(soundRegularJump,2002027);
+		Common::PlaySoundStatic(soundRegularJump, 2002027);
 	}
 }
 HOOK(char, __fastcall, JumpStart, 0x01114CB0, int* This)
@@ -842,21 +857,22 @@ HOOK(void, __fastcall, SetClassicMaxVelocity, 0x00DC2020, CSonicContext* This)
 	}
 }
 //_DWORD *__thiscall Sonic::Player::CSonicStateWalk::Begin(int this)
-HOOK(void, __fastcall, StandCalc,0x00DED4E0, int* This)
+HOOK(void, __fastcall, StandCalc, 0x00DED4E0, int* This)
 {
 	if (BlueBlurCommon::IsClassic() && timerAttack < timerAttackMax && timerCombo < timerComboMax)
 	{
 		auto playerContext = Sonic::Player::CPlayerSpeedContext::GetInstance();
-		if(playingAttack)
-		PlayAnim(GetStateNameFromTable(lastAttackName));
+		if (playingAttack)
+			PlayAnim(GetStateNameFromTable(lastAttackName));
 	}
 	else
 		originalStandCalc(This);
 }
 //void __thiscall sub_DB9F90(CTempState *this)
 HOOK(void, __fastcall, CHudSonicStageUpdateParallel, 0x1098A50, Sonic::CGameObject* This, void* Edx, const hh::fnd::SUpdateInfo& in_rUpdateInfo)
-{	
+{
 	originalCHudSonicStageUpdateParallel(This, Edx, in_rUpdateInfo);
+	deltaTime = in_rUpdateInfo.DeltaTime;
 	if (!BlueBlurCommon::IsClassic())
 	{
 		return;
@@ -884,6 +900,8 @@ HOOK(void, __fastcall, CHudSonicStageUpdateParallel, 0x1098A50, Sonic::CGameObje
 	playerContext->m_spParameter->m_scpNode->m_ValueMap[Sonic::Player::ePlayerSpeedParameter_AirBoostEnableChaosEnergy] = 1000.0f;
 	playerContext->m_spParameter->m_scpNode->m_ValueMap[Sonic::Player::ePlayerSpeedParameter_EnableHurdleJumpMinVelocity] = 1000.0f;
 
+	SONIC_CLASSIC_CONTEXT->m_spParameter->m_scpNode->m_ValueMap[Sonic::Player::ePlayerSpeedParameter_MaxHorzVelocity] = GetVelocity();
+
 
 
 	isGrounded = playerContext->m_Grounded;
@@ -903,6 +921,7 @@ HOOK(void, __fastcall, CHudSonicStageUpdateParallel, 0x1098A50, Sonic::CGameObje
 	DebugDrawText::log((std::string("Latest Music Cue: ") + std::string(lastMusicCue)).c_str(), 0);
 
 	DebugDrawText::log((std::string("Current Player State: ") + stateCheckS).c_str(), 0);
+	DebugDrawText::log((std::string("Current Player Posture: ") + std::string(playerContext->m_pPlayer->m_PostureStateMachine.GetCurrentState()->m_Name.c_str())).c_str(), 0);
 	auto inputPtr = &Sonic::CInputState::GetInstance()->m_PadStates[Sonic::CInputState::GetInstance()->m_CurrentPadStateIndex];
 	if (inputPtr->IsDown(eKeyState_X) || inputPtr->IsDown(eKeyState_Y) || inputPtr->IsDown(eKeyState_A))
 	{
@@ -957,6 +976,7 @@ HOOK(void, __fastcall, CHudSonicStageUpdateParallel, 0x1098A50, Sonic::CGameObje
 		shield.reset();
 	}
 	CheckForThinPlatform();
+	
 	if (inputPtr->IsDown(Sonic::eKeyState_RightTrigger))
 	{
 		currentState = WerehogState::Dash;
@@ -965,6 +985,34 @@ HOOK(void, __fastcall, CHudSonicStageUpdateParallel, 0x1098A50, Sonic::CGameObje
 	{
 		currentState = WerehogState::Normal;
 	}
+	if (!playingAttack && isGrounded)
+	{
+		const auto spAnimInfo = boost::make_shared<Sonic::Message::MsgGetAnimationInfo>();
+		playerContext->m_pPlayer->SendMessageImm(playerContext->m_pPlayer->m_ActorID, spAnimInfo);
+		if (currentState == WerehogState::Dash)
+		{
+			
+			if ((std::strstr(spAnimInfo->m_Name.c_str(), "Evilsonic_dash") == nullptr)
+				|| (std::strstr(spAnimInfo->m_Name.c_str(), "Evilsonic_dash") != nullptr && spAnimInfo->m_Frame >= 10))
+			{
+				PlayAnim("Evilsonic_dash");
+			}
+		}
+		if (currentState == WerehogState::Normal)
+		{
+		/*	if(std::strstr(spAnimInfo->m_Name.c_str(), "Evilsonic_dash") != nullptr)
+				PlayAnim("Evilsonic_dashE");*/
+
+			if (playerContext->m_Velocity.x() >= 5 || playerContext->m_Velocity.z() >= 5)
+			{
+				if ((std::strstr(spAnimInfo->m_Name.c_str(), "Evilsonic_run") == nullptr)
+					|| (std::strstr(spAnimInfo->m_Name.c_str(), "Evilsonic_run") != nullptr && spAnimInfo->m_Frame >= 51))
+					PlayAnim("Evilsonic_run");
+			}
+
+		}
+	}
+
 	if (timerCombo > timerComboMax)
 	{
 		comboProgress = 0;
@@ -1089,6 +1137,28 @@ extern "C" __declspec(dllexport) bool API_IsWerehogActive()
 {
 	return BlueBlurCommon::IsClassic();
 }
+HOOK(void, __cdecl, InitializeApplicationVFXParams, 0x00D65180, Sonic::CParameterFile* This)
+{
+	boost::shared_ptr<Sonic::CParameterGroup> parameterGroup;
+	This->CreateParameterGroup(parameterGroup, "EvilSonic", "Parameters for the Werehog Mod from NextinHKRY");
+	Sonic::CEditParam* cat_Physics = parameterGroup->CreateParameterCategory("EvilSonic", "Werehog's Parameters");
+
+	cat_Physics->CreateParamFloat(&timerComboMax, "Timer Combo Maximum");
+	cat_Physics->CreateParamFloat(&timerAttackMax, "Timer Attack Maximum");
+	cat_Physics->CreateParamFloat(&timerDamageMax, "Timer Damage Maximum");
+	cat_Physics->CreateParamFloat(&lifeWerehog, "Life Amount");
+	cat_Physics->CreateParamFloat(&attackVelocityDivider, "Atttack Velocity Divider");
+
+	parameterGroup->Flush();
+
+	originalInitializeApplicationVFXParams(This);
+}
+//00DED4E0
+//Hedgehog::Base::CSharedString* __thiscall Sonic::Player::CSonicStateWalk::Update(int* this)
+HOOK(Hedgehog::Base::CSharedString*, __fastcall, WalkUpdate, 0x00DED4E0, int* This)
+{
+	return 0;
+}
 void evSonic::Install()
 {
 	//Register some of the basic non-attack anims
@@ -1097,6 +1167,12 @@ void evSonic::Install()
 	CustomAnimationManager::RegisterAnimation("Evilsonic_BerserkerS", "evilsonic_BerserkerS");
 	CustomAnimationManager::RegisterAnimation("JumpEvil1", "evilsonic_jumpVS");
 	CustomAnimationManager::RegisterAnimation("JumpEvil2", "evilsonic_jumpVS2");
+	CustomAnimationManager::RegisterAnimation("Evilsonic_dashS", "evilsonic_dashS");
+	CustomAnimationManager::RegisterAnimation("Evilsonic_dash", "evilsonic_dash");
+	
+	CustomAnimationManager::RegisterAnimation("Evilsonic_runS", "evilsonic_runS");
+	CustomAnimationManager::RegisterAnimation("Evilsonic_run", "evilsonic_run", 3);
+	CustomAnimationManager::RegisterAnimation("Evilsonic_runE", "evilsonic_runE");
 
 
 	//WRITE_MEMORY(0xD00E6F, uint8_t, 0xEB);
@@ -1104,7 +1180,14 @@ void evSonic::Install()
 	//INSTALL_HOOK(CSonicSetMaxSpeedBasis);
 	//INSTALL_HOOK(sub_BE0790);
 
+	//runE = walk stop
+	//runS = walk start
+	//run = walk
+	//dashS = run start
+	//dash run
+	//dashE = run stop
 
+	INSTALL_HOOK(InitializeApplicationVFXParams);
 	INSTALL_HOOK(XButtonHoming_ChangeToHomingAttack);
 	INSTALL_HOOK(SetClassicMaxVelocity);
 	INSTALL_HOOK(GetClassicMaxVelocity);
@@ -1114,11 +1197,13 @@ void evSonic::Install()
 	INSTALL_HOOK(ProcMsgRestartStage);
 	INSTALL_HOOK(CClassicSonicProcMsgDamage);
 	INSTALL_HOOK(CHudSonicStageUpdateParallel);
+	INSTALL_HOOK(WalkUpdate);
 	INSTALL_HOOK(HomingBegin);
 	INSTALL_HOOK(StandCalc);
 	INSTALL_HOOK(_CPlayerSpeedUpdateParallel);
 	INSTALL_HOOK(_InitializePlayer);
 
+	WRITE_JUMP(0X00D900C7, 0X00D9019A);
 	//Unmap stomp/spin for classic
 	WRITE_JUMP(0X00DC5F7E, 0X00DC6054);
 	WRITE_JUMP(0X012523C0, 0x012530E0);
