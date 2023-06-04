@@ -172,6 +172,7 @@ bool IsCurrentAnimationName(std::string in)
 	auto playerContext = Sonic::Player::CPlayerSpeedContext::GetInstance();
 	const auto spAnimInfo = boost::make_shared<Sonic::Message::MsgGetAnimationInfo>();
 	playerContext->m_pPlayer->SendMessageImm(playerContext->m_pPlayer->m_ActorID, spAnimInfo);
+	return std::strstr(spAnimInfo->m_Name.c_str(), in.c_str()) != nullptr;
 }
 std::string GetStateNameFromTable(std::string in)
 {
@@ -873,11 +874,16 @@ HOOK(void, __fastcall, CHudSonicStageUpdateParallel, 0x1098A50, Sonic::CGameObje
 {
 	originalCHudSonicStageUpdateParallel(This, Edx, in_rUpdateInfo);
 	deltaTime = in_rUpdateInfo.DeltaTime;
+	
+	const auto playerContext = Sonic::Player::CPlayerSpeedContext::GetInstance();
+	const auto spAnimInfo = boost::make_shared<Sonic::Message::MsgGetAnimationInfo>();
+	playerContext->m_pPlayer->SendMessageImm(playerContext->m_pPlayer->m_ActorID, spAnimInfo);
+	DebugDrawText::log((std::string("Current Player Anim: ") + std::string(spAnimInfo->m_Name.c_str())).c_str(), 0);
+	WRITE_MEMORY(0x015DBAA0,char*, "sc_start_normal")
 	if (!BlueBlurCommon::IsClassic())
 	{
 		return;
 	}
-	const auto playerContext = Sonic::Player::CPlayerSpeedContext::GetInstance();
 	if (timerDamage <= timerDamageMax)
 		timerDamage += in_rUpdateInfo.DeltaTime;
 	// Force disable extended boost.
@@ -991,11 +997,13 @@ HOOK(void, __fastcall, CHudSonicStageUpdateParallel, 0x1098A50, Sonic::CGameObje
 		playerContext->m_pPlayer->SendMessageImm(playerContext->m_pPlayer->m_ActorID, spAnimInfo);
 		if (currentState == WerehogState::Dash)
 		{
-			
-			if ((std::strstr(spAnimInfo->m_Name.c_str(), "Evilsonic_dash") == nullptr)
-				|| (std::strstr(spAnimInfo->m_Name.c_str(), "Evilsonic_dash") != nullptr && spAnimInfo->m_Frame >= 10))
+			if (abs(playerContext->m_Velocity.x()) >= 12 || abs(playerContext->m_Velocity.z()) >= 12)
 			{
-				PlayAnim("Evilsonic_dash");
+				if ((!IsCurrentAnimationName("Evilsonic_dash"))
+					|| (IsCurrentAnimationName("Evilsonic_dash") && spAnimInfo->m_Frame >= 10))
+				{
+					PlayAnim("Evilsonic_dash");
+				}
 			}
 		}
 		if (currentState == WerehogState::Normal)
@@ -1003,10 +1011,10 @@ HOOK(void, __fastcall, CHudSonicStageUpdateParallel, 0x1098A50, Sonic::CGameObje
 		/*	if(std::strstr(spAnimInfo->m_Name.c_str(), "Evilsonic_dash") != nullptr)
 				PlayAnim("Evilsonic_dashE");*/
 
-			if (playerContext->m_Velocity.x() >= 5 || playerContext->m_Velocity.z() >= 5)
-			{
-				if ((std::strstr(spAnimInfo->m_Name.c_str(), "Evilsonic_run") == nullptr)
-					|| (std::strstr(spAnimInfo->m_Name.c_str(), "Evilsonic_run") != nullptr && spAnimInfo->m_Frame >= 51))
+			if (abs(playerContext->m_Velocity.x()) >= 5 || abs(playerContext->m_Velocity.z()) >= 5)
+			{ 
+				if ((!IsCurrentAnimationName("Evilsonic_run"))
+					|| (IsCurrentAnimationName("Evilsonic_run") && spAnimInfo->m_Frame >= 51))
 					PlayAnim("Evilsonic_run");
 			}
 
@@ -1159,6 +1167,46 @@ HOOK(Hedgehog::Base::CSharedString*, __fastcall, WalkUpdate, 0x00DED4E0, int* Th
 {
 	return 0;
 }
+void __declspec(naked) TestJump()
+{
+	static uint32_t RedRingCollectedCheckReturnAddress = 0x00DC6719;
+	static uint32_t sub_E71A50 = 0xE71A50;
+	static uint32_t sub_DFCE30 = 0xDFCE30;
+	static uint32_t loc_E01F37 = 0xE01F37;
+	static uint32_t loc_E01F68 = 0xE01F68;
+	__asm
+	{
+		mov     al, [edi + 440h]
+		mov     esi, edi
+		call[sub_E71A50]
+		push    edi
+		call[sub_DFCE30]
+		jmp[RedRingCollectedCheckReturnAddress]
+	}
+}
+void __declspec(naked) TestJump1()
+{
+	static uint32_t called = 0x00DFC470;
+	static uint32_t RedRingCollectedCheckReturnAddress = 0x00DEF428;
+	__asm
+	{
+		mov ebx, Sonic::Player::CSonicClassicContext::GetInstance
+		jmp[RedRingCollectedCheckReturnAddress]
+	}
+}
+//char __stdcall sub_DFCE30(CSonicContext *a2)
+HOOK(char, __stdcall, Camtest, 0xDFCE30, Sonic::Player::CPlayerSpeedContext::CStateSpeedBase* a2)
+{
+	//modern calls 00DFC410
+	//classic calls unset homing attack
+	//2 = readygo crouch
+	PlayAnim("StartEventDash");
+	*((DWORD*)a2 + 1329) = 2;
+	if (BlueBlurCommon::IsClassic())
+	{
+	}
+	return originalCamtest(a2);
+}
 void evSonic::Install()
 {
 	//Register some of the basic non-attack anims
@@ -1202,6 +1250,9 @@ void evSonic::Install()
 	INSTALL_HOOK(StandCalc);
 	INSTALL_HOOK(_CPlayerSpeedUpdateParallel);
 	INSTALL_HOOK(_InitializePlayer);
+	INSTALL_HOOK(Camtest);
+	WRITE_JUMP(0x00DC6713, TestJump);
+	//WRITE_JUMP(0x00DEF41F, TestJump1);
 
 	WRITE_JUMP(0X00D900C7, 0X00D9019A);
 	//Unmap stomp/spin for classic
