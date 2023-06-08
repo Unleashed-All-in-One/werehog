@@ -321,6 +321,35 @@ public:
 
 	}
 };
+class TestState : public Sonic::Player::CPlayerSpeedContext::CStateSpeedBase
+{
+	
+public:
+	static constexpr const char* ms_StateName = "StartCrouching";
+
+	CVector GetForward()
+	{
+		auto context = GetContext();
+		return (context->m_spMatrixNode->m_Transform.m_Rotation * Eigen::Vector3f::UnitZ());
+	}
+	void EnterState() override
+	{
+		const auto playerContext = Sonic::Player::CPlayerSpeedContext::GetInstance();
+		//*(int*)this = 0x016D7648;
+		const auto spAnimInfo = boost::make_shared<Sonic::Message::MsgGetAnimationInfo>();
+		playerContext->m_pPlayer->SendMessageImm(playerContext->m_pPlayer->m_ActorID, spAnimInfo);
+		playerContext->ChangeAnimation("StartEventDash");
+		/*if(m_CurrentMotion.MotionMoveSpeedRatioFrameStart.at(m_LastActionIndex) == -1)
+			ms_AlteredVelocity = GetForward() * m_CurrentMotion.MotionMoveSpeedRatioFrame.at(m_LastActionIndex);*/
+	}
+	void UpdateState() override
+	{
+		//void __thiscall sub_DEF180(CTempState *a1)
+		/*FUNCTION_PTR(void, __thiscall, sub_DEF180, 0xDEF180, Sonic::Player::CPlayerSpeedContext::CStateSpeedBase * a1);
+		sub_DEF180(this);*/
+	}
+	
+};
 
 // Func for adding the test state.
 // Fun fact: declaring and assigning a STATIC variable in a func like this will only do this *once.*
@@ -331,7 +360,10 @@ void AddTestState(Sonic::Player::CPlayerSpeedContext* context)
 
 	if (!added)
 	{
+		auto state = (Sonic::Player::CPlayerSpeedContext::CStateSpeedBase*)0x016D7648;
 		context->m_pPlayer->m_StateMachine.RegisterStateFactory<CStateAttackAction_byList>();
+		context->m_pPlayer->m_StateMachine.RegisterStateFactory<TestState>();
+		//context->m_pPlayer->m_StateMachine.RegisterStateFactory<state>();
 		context->m_pPlayer->m_PostureStateMachine.RegisterStateFactory<CStateAttackAction_byList_Posture>();
 		added = true;
 	}
@@ -878,8 +910,14 @@ HOOK(void, __fastcall, CHudSonicStageUpdateParallel, 0x1098A50, Sonic::CGameObje
 	const auto playerContext = Sonic::Player::CPlayerSpeedContext::GetInstance();
 	const auto spAnimInfo = boost::make_shared<Sonic::Message::MsgGetAnimationInfo>();
 	playerContext->m_pPlayer->SendMessageImm(playerContext->m_pPlayer->m_ActorID, spAnimInfo);
+	Hedgehog::Base::CSharedString stateCheck = playerContext->m_pPlayer->m_StateMachine.GetCurrentState()->GetStateName();
+	std::string stateCheckS(stateCheck.c_str());
 	DebugDrawText::log((std::string("Current Player Anim: ") + std::string(spAnimInfo->m_Name.c_str())).c_str(), 0);
-	WRITE_MEMORY(0x015DBAA0,char*, "sc_start_normal")
+	if(stateCheck != "StartCrouching")
+		playerContext->ChangeState("StartCrouching");
+
+	DebugDrawText::log((std::string("Current Player State: ") + stateCheckS).c_str(), 0);
+	DebugDrawText::log((std::string("Current Player Posture: ") + std::string(playerContext->m_pPlayer->m_PostureStateMachine.GetCurrentState()->m_Name.c_str())).c_str(), 0);
 	if (!BlueBlurCommon::IsClassic())
 	{
 		return;
@@ -889,8 +927,6 @@ HOOK(void, __fastcall, CHudSonicStageUpdateParallel, 0x1098A50, Sonic::CGameObje
 	// Force disable extended boost.
 	*(uint32_t*)((uint32_t)*CONTEXT->ms_pInstance + 0x680) = 1;
 	CONTEXT->m_ChaosEnergy = min(CONTEXT->m_ChaosEnergy, 100);
-	Hedgehog::Base::CSharedString stateCheck = playerContext->m_pPlayer->m_StateMachine.GetCurrentState()->GetStateName();
-	std::string stateCheckS(stateCheck.c_str());
 
 
 	//playerContext->m_JumpThrust = CVector(playerContext->m_JumpThrust.x(), 1, playerContext->m_JumpThrust.z());
@@ -925,9 +961,6 @@ HOOK(void, __fastcall, CHudSonicStageUpdateParallel, 0x1098A50, Sonic::CGameObje
 	DebugDrawText::log((std::string("PlayingAttack") + std::to_string(playingAttack)).c_str(), 0);
 	DebugDrawText::log((std::string("AttackAnim: ") + std::string(lastAttackName)).c_str(), 0);
 	DebugDrawText::log((std::string("Latest Music Cue: ") + std::string(lastMusicCue)).c_str(), 0);
-
-	DebugDrawText::log((std::string("Current Player State: ") + stateCheckS).c_str(), 0);
-	DebugDrawText::log((std::string("Current Player Posture: ") + std::string(playerContext->m_pPlayer->m_PostureStateMachine.GetCurrentState()->m_Name.c_str())).c_str(), 0);
 	auto inputPtr = &Sonic::CInputState::GetInstance()->m_PadStates[Sonic::CInputState::GetInstance()->m_CurrentPadStateIndex];
 	if (inputPtr->IsDown(eKeyState_X) || inputPtr->IsDown(eKeyState_Y) || inputPtr->IsDown(eKeyState_A))
 	{
@@ -1184,6 +1217,19 @@ void __declspec(naked) TestJump()
 		jmp[RedRingCollectedCheckReturnAddress]
 	}
 }
+void __declspec(naked) TestJumpNew()
+{
+	static uint32_t RedRingCollectedCheckReturnAddress = 0x00DC69B6;
+	static uint32_t sub_E71A50 = 0xE71A50;
+	static uint32_t sub_DFCE30 = 0xDFCE30;
+	__asm
+	{
+		call    [sub_E71A50]
+		push    esi
+		call[sub_DFCE30]
+		jmp[RedRingCollectedCheckReturnAddress]
+	}
+}
 void __declspec(naked) TestJump1()
 {
 	static uint32_t called = 0x00DFC470;
@@ -1194,6 +1240,17 @@ void __declspec(naked) TestJump1()
 		jmp[RedRingCollectedCheckReturnAddress]
 	}
 }
+
+HOOK(char, __fastcall, DEF010, 0xDEF010, Sonic::Player::CPlayerSpeedContext::CStateSpeedBase* This)
+{
+	return 0;
+}
+HOOK(void, __fastcall, DEF180, 0x00DEF180, Sonic::Player::CPlayerSpeedContext::CStateSpeedBase* This)
+{
+}HOOK(char, __fastcall, DEF0A0, 0xDEF0A0, Sonic::Player::CPlayerSpeedContext::CStateSpeedBase* This)
+{
+	return 0;
+}
 //char __stdcall sub_DFCE30(CSonicContext *a2)
 HOOK(char, __stdcall, Camtest, 0xDFCE30, Sonic::Player::CPlayerSpeedContext::CStateSpeedBase* a2)
 {
@@ -1201,6 +1258,8 @@ HOOK(char, __stdcall, Camtest, 0xDFCE30, Sonic::Player::CPlayerSpeedContext::CSt
 	//classic calls unset homing attack
 	//2 = readygo crouch
 	PlayAnim("StartEventDash");
+
+
 	*((DWORD*)a2 + 1329) = 2;
 	if (BlueBlurCommon::IsClassic())
 	{
@@ -1221,13 +1280,14 @@ void evSonic::Install()
 	CustomAnimationManager::RegisterAnimation("Evilsonic_runS", "evilsonic_runS");
 	CustomAnimationManager::RegisterAnimation("Evilsonic_run", "evilsonic_run", 3);
 	CustomAnimationManager::RegisterAnimation("Evilsonic_runE", "evilsonic_runE");
+	//CustomAnimationManager::RegisterAnimation("StartEventDash", "evilsonic_runE");
 
 
 	//WRITE_MEMORY(0xD00E6F, uint8_t, 0xEB);
 	//INSTALL_HOOK(XButtonInput);
 	//INSTALL_HOOK(CSonicSetMaxSpeedBasis);
 	//INSTALL_HOOK(sub_BE0790);
-
+	WRITE_MEMORY(0x015DBAA0, char, "evilsonic_dashS");
 	//runE = walk stop
 	//runS = walk start
 	//run = walk
@@ -1245,13 +1305,17 @@ void evSonic::Install()
 	INSTALL_HOOK(ProcMsgRestartStage);
 	INSTALL_HOOK(CClassicSonicProcMsgDamage);
 	INSTALL_HOOK(CHudSonicStageUpdateParallel);
+	INSTALL_HOOK(DEF010);
+	INSTALL_HOOK(DEF0A0);
+	INSTALL_HOOK(DEF180);
 	INSTALL_HOOK(WalkUpdate);
 	INSTALL_HOOK(HomingBegin);
 	INSTALL_HOOK(StandCalc);
 	INSTALL_HOOK(_CPlayerSpeedUpdateParallel);
 	INSTALL_HOOK(_InitializePlayer);
 	INSTALL_HOOK(Camtest);
-	WRITE_JUMP(0x00DC6713, TestJump);
+	//WRITE_JUMP(0x00DC6713, TestJump);
+	WRITE_JUMP(0x00DC69B1, TestJumpNew);
 	//WRITE_JUMP(0x00DEF41F, TestJump1);
 
 	WRITE_JUMP(0X00D900C7, 0X00D9019A);
