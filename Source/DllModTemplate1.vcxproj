@@ -182,6 +182,7 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="ArchiveTreePatcher.cpp" />
+    <ClCompile Include="ClassicPluginExtensions.cpp" />
     <ClCompile Include="Configuration.cpp" />
     <ClCompile Include="CustomAnimationManager.cpp" />
     <ClCompile Include="EnemyBase.cpp" />
@@ -196,19 +197,20 @@
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Create</PrecompiledHeader>
       <PrecompiledHeaderFile Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Pch.h</PrecompiledHeaderFile>
     </ClCompile>
-    <ClCompile Include="Sonic.cpp" />
+    <ClCompile Include="EvilSonic.cpp" />
     <ClCompile Include="Temporary.cpp" />
     <ClCompile Include="Testing.cpp" />
     <ClCompile Include="XMLParser.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="ArchiveTreePatcher.h" />
+    <ClInclude Include="ClassicPluginExtensions.h" />
     <ClInclude Include="Configuration.h" />
     <ClInclude Include="CustomAnimationManager.h" />
     <ClInclude Include="DllMain.cpp" />
     <ClInclude Include="EnemyBase.h" />
     <ClInclude Include="Pch.h" />
-    <ClInclude Include="Sonic.h" />
+    <ClInclude Include="EvilSonic.h" />
     <ClInclude Include="Temporary.h" />
     <ClInclude Include="Testing.h" />
     <ClInclude Include="XMLParser.h" />

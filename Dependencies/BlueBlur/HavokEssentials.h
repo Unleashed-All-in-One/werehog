@@ -1,5 +1,4 @@
 #pragma once
-#include <BlueBlur.h>
 namespace Havok
 {
 	// Typedefs - Taken from Havok header-only SDK

@@ -2,75 +2,7 @@
 using namespace hh::math;
 using namespace Sonic;
 
-static const int* pColID_BasicTerrain = reinterpret_cast<int*>(0x01E0AFAC);
-static const int* pColID_Common = reinterpret_cast<int*>(0x01E0AF30);
-static const int* pColID_PlayerEvent = reinterpret_cast<int*>(0x01E0AFD8);
-static const int* pColID_Mystery = reinterpret_cast<int*>(0x01E0AF90);
-static const int* pColID_Mystery2 = reinterpret_cast<int*>(0x1E0AFBC);
-namespace Sonic
-{
-	class CRigidBody
-	{
-	public:
-		virtual ~CRigidBody() = default;
 
-		Havok::RigidBody* m_pHkpRigidBody;
-
-
-		virtual void* GetCollider(void* a1) { return a1; }
-		virtual void* fn02(void* a1) { return a1; }
-		virtual void ApplyPropertyID(int id, uint64_t* weird) {}
-		virtual void fn04(int a, int b) {}
-		virtual void fn05(int a, int b) {}
-		virtual void GetPropertyValue(uint64_t* weird, int hash) {}
-		virtual bool VerifyPropertyID(int hash) { return false; }
-
-		void ApplyPropertyID(int id, int value)
-		{
-			struct
-			{
-				int value;
-				int buffer;
-			} data;
-			data.value = value;
-			ApplyPropertyID(id, (uint64_t*)&data);
-		}
-
-		void AddBoolProperty(int hashedName, int id)
-		{
-			if (!VerifyPropertyID(hashedName))
-				return;
-
-			uint64_t data = 0;
-			GetPropertyValue(&data, hashedName);
-
-			data = data != 0;
-			ApplyPropertyID(id, &data);
-		}
-
-		bool GetBoolProperty(int id)
-		{
-			if (!VerifyPropertyID(id))
-				return false;
-
-			uint64_t data = 0;
-			GetPropertyValue(&data, id);
-
-			return data != 0;
-		}
-
-		Havok::Shape* GetShape() const
-		{
-			return m_pHkpRigidBody->m_Collideable.m_Shape;
-		}
-	};
-}
-
-//"Index1_R" :
-//"Middle1_R"
-//"Pinky1_R" :
-//	Ring1_R" : "
-//	"Thumb1_R" :
 SharedPtrTypeless sound, soundUnleash, soundUnleashStart;
 SharedPtrTypeless soundRegularJump;
 SharedPtrTypeless indexParticle_L, indexParticle_R;
@@ -103,8 +35,24 @@ bool playingAttack;
 bool isGrounded;
 std::string lastAttackName;
 Sonic::EKeyState lastTap;
+bool cameraAnimTempExecuted = false;
 
+//find a better way please
+bool init = false;
 boost::shared_ptr<Sonic::CGameObject3D> collision1;
+
+
+
+void sub_E78310(Sonic::Player::CPlayer* player)
+{
+	uint32_t func = 0x00E78310;
+	DWORD* result;
+	__asm
+	{
+		mov     eax, player
+		call func
+	};
+};
 class CBasicSphere : public Sonic::CGameObject3D
 {
 public:
@@ -123,6 +71,7 @@ public:
 		const char* assetName = "BasicSphere";
 		boost::shared_ptr<hh::mr::CModelData> spModelData = wrapper.GetModelData(assetName, 0);
 
+		sizeof(Sonic::Player::CPlayerSpeedContext::CStateSpeedBase);
 		m_spRenderable = boost::make_shared<hh::mr::CSingleElement>(spModelData);
 		// Safeguard from crashing (last I checked this works, could crash if it doesn't exist anyway.)
 		if (!spModelData)
@@ -139,7 +88,7 @@ public:
 		const CVector railHalfExtents = CVector(1.0f, 1.0f, 1.0f);
 
 		Havok::BoxShape* shapeRail = new Havok::BoxShape(railHalfExtents * 0.5f);
-		AddRigidBody(m_spRigidBody, shapeRail, *pColID_Mystery, m_spMatrixNodeTransform);
+		AddRigidBody(m_spRigidBody, shapeRail, *pColID_Common, m_spMatrixNodeTransform);
 		shapeRail->removeReference();
 
 
@@ -154,7 +103,7 @@ public:
 		m_spNodeEventCollision->SetParent(m_spMatrixNodeTransform.get());
 
 		Havok::BoxShape* shapeEventTrigger = new Havok::BoxShape(2, 2, 2);
-		AddEventCollision("Damage", shapeEventTrigger, *pColID_Mystery2, true, m_spNodeEventCollision);
+		AddEventCollision("Damage", shapeEventTrigger, *pColID_Common, true, m_spNodeEventCollision);
 		shapeEventTrigger->removeReference();
 
 	}
@@ -201,6 +150,8 @@ void SetsHighSpeedVectorAndAppliesGravity(void* doc)
 		call func
 	};
 };
+Sonic::Player::CPlayerSpeedContext::CStateSpeedBase* this_is_a_bad_hack_please_fix;
+
 class CStateAttackAction_byList_Posture : public Sonic::Player::CPlayerSpeedPosture3DCommon
 {
 public:
@@ -238,8 +189,6 @@ public:
 		//SetsHighSpeedVectorAndAppliesGravity(playerContext);
 	}
 };
-
-
 class CStateAttackAction_byList : public Sonic::Player::CPlayerSpeedContext::CStateSpeedBase
 {
 	int m_LastActionIndex;
@@ -266,11 +215,8 @@ public:
 		m_LastFrame = -1;
 		m_LastActionIndex = 0;
 		ms_InitialVelocity = context->m_Velocity;
-		//
 		ms_AlteredVelocity = ms_InitialVelocity;
 		context->m_pPlayer->m_PostureStateMachine.ChangeState<CStateAttackAction_byList_Posture>();
-		/*if(m_CurrentMotion.MotionMoveSpeedRatioFrameStart.at(m_LastActionIndex) == -1)
-			ms_AlteredVelocity = GetForward() * m_CurrentMotion.MotionMoveSpeedRatioFrame.at(m_LastActionIndex);*/
 	}
 	void UpdateState() override
 	{
@@ -293,6 +239,8 @@ public:
 
 		if (spAnimInfo->m_Frame >= m_CurrentMotion.MotionSpeed_FirstFrame && spAnimInfo->m_Frame < m_CurrentMotion.MotionSpeed_MiddleFrame)
 		{
+			Common::ClampFloat(m_CurrentMotion.MotionMoveSpeedRatio, 0.0001f, 50);
+			Common::ClampFloat(m_CurrentMotion.MotionMoveSpeedRatio_H[0].FrameValue, 0.0001f, 50);
 			ms_AlteredVelocity = GetForward() * (m_CurrentMotion.MotionMoveSpeedRatio / m_CurrentMotion.MotionMoveSpeedRatio_H[0].FrameValue);
 			//		
 			context->m_Velocity = ms_AlteredVelocity;
@@ -323,7 +271,7 @@ public:
 };
 class TestState : public Sonic::Player::CPlayerSpeedContext::CStateSpeedBase
 {
-	
+	float lastFrame = -1;
 public:
 	static constexpr const char* ms_StateName = "StartCrouching";
 
@@ -338,21 +286,44 @@ public:
 		//*(int*)this = 0x016D7648;
 		const auto spAnimInfo = boost::make_shared<Sonic::Message::MsgGetAnimationInfo>();
 		playerContext->m_pPlayer->SendMessageImm(playerContext->m_pPlayer->m_ActorID, spAnimInfo);
-		playerContext->ChangeAnimation("StartEventDash");
+		playerContext->ChangeAnimation("Evilsonic_start");
 		/*if(m_CurrentMotion.MotionMoveSpeedRatioFrameStart.at(m_LastActionIndex) == -1)
 			ms_AlteredVelocity = GetForward() * m_CurrentMotion.MotionMoveSpeedRatioFrame.at(m_LastActionIndex);*/
 	}
 	void UpdateState() override
 	{
+		auto context = GetContext();
+		const auto spAnimInfo = boost::make_shared<Sonic::Message::MsgGetAnimationInfo>();
+		context->m_pPlayer->SendMessageImm(context->m_pPlayer->m_ActorID, spAnimInfo);
+		DebugDrawText::log(std::format("CSTATEATTACKACTION_AnimFrame = {0}", spAnimInfo->m_Frame).c_str(), 0);
+		//if it isnt playing the anim for some reason, force it to play now
+		if (spAnimInfo->m_Frame == lastFrame)
+		{
+			context->ChangeState("Stand");
+			sub_E78310(context->m_pPlayer);
+			cameraAnimTempExecuted = true;
+			FUNCTION_PTR(char, __thiscall, DEF0A0, 0xDEF0A0, Sonic::Player::CPlayerSpeedContext::CStateSpeedBase * This);
+			//^state end for the original
+			DEF0A0(this_is_a_bad_hack_please_fix);
+			//^im hooking into this function to get the statebase when it runs originally, since for some reason if i dont stop it from
+			//executing, it'll instantly end the state the second its set
+		}
 		//void __thiscall sub_DEF180(CTempState *a1)
 		/*FUNCTION_PTR(void, __thiscall, sub_DEF180, 0xDEF180, Sonic::Player::CPlayerSpeedContext::CStateSpeedBase * a1);
 		sub_DEF180(this);*/
+		lastFrame = spAnimInfo->m_Frame;
+	}
+	void LeaveState() override
+	{
+		////char, __fastcall, DEF0A0, 0xDEF0A0, 
+		//FUNCTION_PTR(char, __thiscall, DEF0A0, 0xDEF0A0, Sonic::Player::CPlayerSpeedContext::CStateSpeedBase * This);
+		//DEF0A0(this);
 	}
 	
 };
 
 // Func for adding the test state.
-// Fun fact: declaring and assigning a STATIC variable in a func like this will only do this *once.*
+// Fun fact: declaring and assigning a STATIC variable in a func like this will only do this *once.*	
 void AddTestState(Sonic::Player::CPlayerSpeedContext* context)
 {
 	static bool added = false;
@@ -361,8 +332,11 @@ void AddTestState(Sonic::Player::CPlayerSpeedContext* context)
 	if (!added)
 	{
 		auto state = (Sonic::Player::CPlayerSpeedContext::CStateSpeedBase*)0x016D7648;
+
+		//context->m_pPlayer->m_StateMachine.RegisterStateFactory<Sonic::Player::CrouchState>();
 		context->m_pPlayer->m_StateMachine.RegisterStateFactory<CStateAttackAction_byList>();
-		context->m_pPlayer->m_StateMachine.RegisterStateFactory<TestState>();
+		//context->m_pPlayer->m_StateMachine.RegisterStateFactory<CTestState>();
+		//context->m_pPlayer->m_StateMachine.RegisterStateFactory<TestState>();
 		//context->m_pPlayer->m_StateMachine.RegisterStateFactory<state>();
 		context->m_pPlayer->m_PostureStateMachine.RegisterStateFactory<CStateAttackAction_byList_Posture>();
 		added = true;
@@ -403,22 +377,6 @@ void AddJumpThrust(CSonicContext* sonicContext, bool Condition)
 		call func
 	};
 };
-//replace with something that makes more sense
-double calculateDistance(const std::vector<EKeyState>& array1, const std::vector<EKeyState>& array2) {
-	if (array1.size() != array2.size()) {
-		// Arrays must have the same size for a valid comparison
-		return -1.0;
-	}
-
-	double sum = 0.0;
-	for (size_t i = 0; i < array1.size(); ++i) {
-		double diff = array1[i] - array2[i];
-		sum += diff * diff;
-	}
-
-	return std::sqrt(sum);
-}
-
 void PlayAnim(std::string name)
 {
 	const auto playerContext = Sonic::Player::CPlayerSpeedContext::GetInstance();
@@ -703,8 +661,6 @@ float SetPlayerVelocity()
 	}
 	}
 }
-//find a better way please
-bool init = false;
 void Particle_Checker()
 {
 	if (timerAttack > timerAttackMax)
@@ -738,12 +694,16 @@ HOOK(void, __fastcall, CPlayerAddCallback, 0xE799F0, Sonic::Player::CPlayer* Thi
 {
 	originalCPlayerAddCallback(This, Edx, worldHolder, pGameDocument, spDatabase);
 
-	const auto playerContext = Sonic::Player::CPlayerSpeedContext::GetInstance();
-	playerContext->m_ChaosEnergy = 0;
-	lifeWerehog = 5.0f;
-	canJump = true;
-	isGrounded = true;
-	playingAttack = false;
+	if (BlueBlurCommon::IsClassic())
+	{
+		const auto playerContext = Sonic::Player::CPlayerSpeedContext::GetInstance();
+		playerContext->m_ChaosEnergy = 0;
+		lifeWerehog = 5.0f;
+		canJump = true;
+		isGrounded = true;
+		playingAttack = false;
+		playerContext->ChangeState("StartCrouching");
+	}
 
 }
 HOOK(int, __fastcall, HomingBegin, 0x01232040, CQuaternion* This)
@@ -815,6 +775,7 @@ DWORD* GetServiceGameplay(Hedgehog::Base::TSynchronizedPtr<Sonic::CApplicationDo
 		mov     result, eax
 	};
 };
+
 
 HOOK(void, __fastcall, Jump_PlayAnimation, 0x01235250, int This)
 {
@@ -912,9 +873,7 @@ HOOK(void, __fastcall, CHudSonicStageUpdateParallel, 0x1098A50, Sonic::CGameObje
 	playerContext->m_pPlayer->SendMessageImm(playerContext->m_pPlayer->m_ActorID, spAnimInfo);
 	Hedgehog::Base::CSharedString stateCheck = playerContext->m_pPlayer->m_StateMachine.GetCurrentState()->GetStateName();
 	std::string stateCheckS(stateCheck.c_str());
-	DebugDrawText::log((std::string("Current Player Anim: ") + std::string(spAnimInfo->m_Name.c_str())).c_str(), 0);
-	if(stateCheck != "StartCrouching")
-		playerContext->ChangeState("StartCrouching");
+	DebugDrawText::log((std::string("Current Player Anim: ") + std::string(spAnimInfo->m_Name.c_str())).c_str(), 0);	
 
 	DebugDrawText::log((std::string("Current Player State: ") + stateCheckS).c_str(), 0);
 	DebugDrawText::log((std::string("Current Player Posture: ") + std::string(playerContext->m_pPlayer->m_PostureStateMachine.GetCurrentState()->m_Name.c_str())).c_str(), 0);
@@ -922,6 +881,13 @@ HOOK(void, __fastcall, CHudSonicStageUpdateParallel, 0x1098A50, Sonic::CGameObje
 	{
 		return;
 	}
+	if (stateCheckS != "StartCrouching" && !cameraAnimTempExecuted)
+	{
+		playerContext->ChangeState("StartCrouching");
+		cameraAnimTempExecuted = true;
+
+	}
+
 	if (timerDamage <= timerDamageMax)
 		timerDamage += in_rUpdateInfo.DeltaTime;
 	// Force disable extended boost.
@@ -1217,19 +1183,7 @@ void __declspec(naked) TestJump()
 		jmp[RedRingCollectedCheckReturnAddress]
 	}
 }
-void __declspec(naked) TestJumpNew()
-{
-	static uint32_t RedRingCollectedCheckReturnAddress = 0x00DC69B6;
-	static uint32_t sub_E71A50 = 0xE71A50;
-	static uint32_t sub_DFCE30 = 0xDFCE30;
-	__asm
-	{
-		call    [sub_E71A50]
-		push    esi
-		call[sub_DFCE30]
-		jmp[RedRingCollectedCheckReturnAddress]
-	}
-}
+
 void __declspec(naked) TestJump1()
 {
 	static uint32_t called = 0x00DFC470;
@@ -1241,32 +1195,8 @@ void __declspec(naked) TestJump1()
 	}
 }
 
-HOOK(char, __fastcall, DEF010, 0xDEF010, Sonic::Player::CPlayerSpeedContext::CStateSpeedBase* This)
-{
-	return 0;
-}
-HOOK(void, __fastcall, DEF180, 0x00DEF180, Sonic::Player::CPlayerSpeedContext::CStateSpeedBase* This)
-{
-}HOOK(char, __fastcall, DEF0A0, 0xDEF0A0, Sonic::Player::CPlayerSpeedContext::CStateSpeedBase* This)
-{
-	return 0;
-}
-//char __stdcall sub_DFCE30(CSonicContext *a2)
-HOOK(char, __stdcall, Camtest, 0xDFCE30, Sonic::Player::CPlayerSpeedContext::CStateSpeedBase* a2)
-{
-	//modern calls 00DFC410
-	//classic calls unset homing attack
-	//2 = readygo crouch
-	PlayAnim("StartEventDash");
 
-
-	*((DWORD*)a2 + 1329) = 2;
-	if (BlueBlurCommon::IsClassic())
-	{
-	}
-	return originalCamtest(a2);
-}
-void evSonic::Install()
+void EvilSonic::Install()
 {
 	//Register some of the basic non-attack anims
 	CustomAnimationManager::RegisterAnimation("Evilsonic_damageMB", "evilsonic_damageMB");
@@ -1276,6 +1206,7 @@ void evSonic::Install()
 	CustomAnimationManager::RegisterAnimation("JumpEvil2", "evilsonic_jumpVS2");
 	CustomAnimationManager::RegisterAnimation("Evilsonic_dashS", "evilsonic_dashS");
 	CustomAnimationManager::RegisterAnimation("Evilsonic_dash", "evilsonic_dash");
+	CustomAnimationManager::RegisterAnimation("Evilsonic_start", "evilsonic_start");
 	
 	CustomAnimationManager::RegisterAnimation("Evilsonic_runS", "evilsonic_runS");
 	CustomAnimationManager::RegisterAnimation("Evilsonic_run", "evilsonic_run", 3);
@@ -1287,7 +1218,7 @@ void evSonic::Install()
 	//INSTALL_HOOK(XButtonInput);
 	//INSTALL_HOOK(CSonicSetMaxSpeedBasis);
 	//INSTALL_HOOK(sub_BE0790);
-	WRITE_MEMORY(0x015DBAA0, char, "evilsonic_dashS");
+	
 	//runE = walk stop
 	//runS = walk start
 	//run = walk
@@ -1305,17 +1236,13 @@ void evSonic::Install()
 	INSTALL_HOOK(ProcMsgRestartStage);
 	INSTALL_HOOK(CClassicSonicProcMsgDamage);
 	INSTALL_HOOK(CHudSonicStageUpdateParallel);
-	INSTALL_HOOK(DEF010);
-	INSTALL_HOOK(DEF0A0);
-	INSTALL_HOOK(DEF180);
+	
 	INSTALL_HOOK(WalkUpdate);
 	INSTALL_HOOK(HomingBegin);
 	INSTALL_HOOK(StandCalc);
 	INSTALL_HOOK(_CPlayerSpeedUpdateParallel);
 	INSTALL_HOOK(_InitializePlayer);
-	INSTALL_HOOK(Camtest);
 	//WRITE_JUMP(0x00DC6713, TestJump);
-	WRITE_JUMP(0x00DC69B1, TestJumpNew);
 	//WRITE_JUMP(0x00DEF41F, TestJump1);
 
 	WRITE_JUMP(0X00D900C7, 0X00D9019A);

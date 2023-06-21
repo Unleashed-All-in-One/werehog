@@ -54,7 +54,7 @@ namespace Sonic
         {
             return m_pHkpRigidBody->m_Collideable.m_Shape;
         }
-    };
-}
+    };    
 
- 
+    
+}

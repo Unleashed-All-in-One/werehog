@@ -29,7 +29,7 @@ struct WerehogAttack
 
 
 
-class evSonic
+class EvilSonic
 {
 
 public:

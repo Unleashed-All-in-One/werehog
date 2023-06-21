@@ -191,8 +191,12 @@ namespace Sonic::Player
         return m_pStateFlag->m_Flags[(size_t)in_stateFlag];
     }
 
-    void CPlayerSpeedContext::SetStateFlag(const CPlayerSpeedContext::EStateFlag in_stateFlag, const uint8_t in_flag) const
+    inline void CPlayerSpeedContext::SetStateFlag(const CPlayerSpeedContext::EStateFlag in_stateFlag,  const uint8_t in_flag) const
     {
         m_pStateFlag->m_Flags[(size_t)in_stateFlag] = in_flag;
     }
+   /* void CPlayerSpeedContext::SetStateFlag(const CPlayerSpeedContext::EStateFlag in_stateFlag, const uint8_t in_flag) const
+    {
+        m_pStateFlag->m_Flags[(size_t)in_stateFlag] = in_flag;
+    }*/
 }

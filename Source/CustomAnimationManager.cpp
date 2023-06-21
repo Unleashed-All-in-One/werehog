@@ -1,5 +1,3 @@
-#include <chrono>
-#include <thread>
 std::vector<AnimationEntry> CUSTOM_ANIMATIONS
 {
 };
@@ -36,10 +34,6 @@ HOOK(void*, __cdecl, InitializeSonicAnimationList, 0x01281D50)
             entry.field24 = -1;
             entry.field28 = -1;
             entry.field2C = -1;
-
-            using namespace std::this_thread; // sleep_for, sleep_until
-            using namespace std::chrono; // nanoseconds, system_clock, seconds
-            std::this_thread::sleep_for(2ns);
         }
 
         WRITE_MEMORY(&set->entries, void*, entries);

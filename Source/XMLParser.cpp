@@ -1,6 +1,3 @@
-#include <iostream>
-#include <fstream>
-#include <vector>
 void trim_cruft(std::string& buffer)
 {
 	static const char cruft[] = "\n\r";

@@ -1026,12 +1026,6 @@ namespace Common
 				end :
 		}
 	}
-
-	inline std::string RemoveGarbageCharactersASCII(std::string str)
-	{
-		std::regex rx("[^a-zA-Z0-9 !@#$%^&*()_+-=[]{}\\|;':\",.<>?/]");
-		return std::regex_replace(str, rx, "");
-	}
 	inline void ClampFloat(float& number, float min, float max)
 	{
 		if (number < min) number = min;

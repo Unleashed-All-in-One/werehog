@@ -33,3 +33,6 @@ namespace Sonic::Player
     BB_ASSERT_OFFSETOF(CPlayer, m_spCharacterModel, 0x234);
     BB_ASSERT_SIZEOF(CPlayer, 0x290);
 }
+
+
+    
