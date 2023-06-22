@@ -20,16 +20,3 @@ extern "C" __declspec(dllexport) void Init(ModInfo * modInfo)
 	EvilSonic::Install();
 	Testing::Install();
 }
-//bool isClassic = 0;
-
-
-extern "C" void __declspec(dllexport) OnFrame()
-{
-	/*if (Sonic::CInputState::GetInstance()->GetPadState().IsDown(Sonic::eKeyState_DpadRight))
-	{
-		isClassic = !isClassic;
-		Sonic::Player::CPlayerSpeedContext::GetInstance()->m_pPlayer->SendMessage("Player", boost::make_shared<MsgChangePlayer>(isClassic ? 1 : 0));
-		Sonic::Player::CPlayerSpeedContext::GetInstance()->m_pPlayer->SendMessage("Player", boost::make_shared<MsgChangeHudMode>(3));
-
-	}*/
-}

@@ -18,5 +18,5 @@ HOOK(Hedgehog::Base::CSharedString*, __fastcall, Hedgehog_Base_CSharedString_ope
 
 void Testing::Install()
 {
-	INSTALL_HOOK(Hedgehog_Base_CSharedString_operator);
+	//INSTALL_HOOK(Hedgehog_Base_CSharedString_operator);
 }

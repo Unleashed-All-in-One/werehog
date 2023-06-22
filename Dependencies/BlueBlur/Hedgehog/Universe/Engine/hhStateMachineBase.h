@@ -63,6 +63,7 @@ namespace Hedgehog::Universe
             virtual void CStateBase18() {}
             virtual void CStateBase1C() {}
 
+
             virtual const Base::CSharedString& GetStateName() 
             {
                 return m_Name;

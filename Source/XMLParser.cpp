@@ -261,34 +261,78 @@ void RegisterResources(const char* path)
 		doc.parse<0>(&buffer[0]);
 		auto resourceNode = doc.first_node();
 		Resource res;
+		Trigger trig;
 		int id = 0;
 		//Add trigger functionality too once everything else is done
 		for (rapidxml::xml_node<>* child = resourceNode->first_node(); child; child = child->next_sibling())
 		{
-			if (!isPartOf(child->name(), "ResourceInfo"))
-				continue;
-			auto resource = child->first_node();
-			for (rapidxml::xml_node<>* child2 = resource->first_node(); child2; child2 = child2->next_sibling())
+			if (isPartOf(child->name(), "ResourceInfo"))
 			{
-				res.ID = id;
-				auto name = child2->name();
-				/*if (isPartOf(name, "ID"))
-					res.ID = reinterpret_cast<int>(child2->value());*/
-				if (isPartOf(name, "Type"))
-					res.Type = isPartOf(child2->value(),"CSB") ? ResourceType::CSB : ResourceType::Effect;
-				if (isPartOf(name, "Param"))
+				auto resource = child->first_node();
+				for (rapidxml::xml_node<>* child2 = resource->first_node(); child2; child2 = child2->next_sibling())
 				{
-					Param p;
-					p.FileName = child2->first_node()->value();
-					if(child2->first_node()->next_sibling() != nullptr)
-					p.Cue = child2->first_node()->next_sibling()->value();
-					res.Params = p;
+					auto name = child2->name();
+					if (isPartOf(name, "ID"))
+						res.ID = id;
+					if (isPartOf(name, "Type"))
+						res.Type = isPartOf(child2->value(), "CSB") ? ResourceType::CSB : ResourceType::Effect;
+					if (isPartOf(name, "Param"))
+					{
+						Param p;
+						p.FileName = child2->first_node()->value();
+						if (child2->first_node()->next_sibling() != nullptr)
+							p.Cue = child2->first_node()->next_sibling()->value();
+						res.Params = p;
+					}
 				}
+				XMLParser::attacks.at(attackPos).ResourceInfos.Resources.push_back(res);
+			}	
+			else if (isPartOf(child->name(), "TriggerInfo"))
+			{
+				auto trigger = child->first_node();
+				for (rapidxml::xml_node<>* child2 = trigger->first_node(); child2; child2 = child2->next_sibling())
+				{
 
+					auto name = child2->name();
+					if (isPartOf(name, "ResourceID"))
+					{
+						trig.ResourceID = std::stoi(child2->value());
+					}
+					if (isPartOf(name, "Frame"))
+					{
+						for (rapidxml::xml_node<>* child3 = child2->first_node(); child3; child3 = child3->next_sibling())
+						{
+							auto name2 = child3->name();
+							if (isPartOf(name2, "Type"))
+							{
+								trig.Frame.Type = std::stoi(child3->value());
+							}
+							if (isPartOf(name2, "Start"))
+							{
+								trig.Frame.Start = std::stoi(child3->value());
+							}
+							if (isPartOf(name2, "End"))
+							{
+								trig.Frame.End = std::stoi(child3->value());
+							}
+						}
+					}
+					if (isPartOf(name, "IsFollowNode"))
+					{
+						trig.IsFollowNode = child2->value() == "true";
+					}
+					if (isPartOf(name, "IsInheritPositionOnly"))
+					{
+						trig.IsInheritPositionOnly = child2->value() == "true";
+					}
+					if (isPartOf(name, "NodeName"))
+					{
+						trig.NodeName = child2->value();
+					}
+				}
+				XMLParser::attacks.at(attackPos).TriggerInfos.Resources.push_back(trig);
 			}
-			id++;
-			XMLParser::attacks.at(attackPos).ResourceInfos.Resources.push_back(res);
-			
+			id++;			
 		}
 		fclose(file);
 	}

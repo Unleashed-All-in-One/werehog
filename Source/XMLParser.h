@@ -9,16 +9,36 @@ struct Param
 	std::string FileName;
 	std::string Cue;
 };
+struct Trigger_Frame
+{
+	int Type;
+	int Start;
+	int End;
+};
+struct Trigger
+{
+	int ResourceID;
+	Trigger_Frame Frame;
+	bool IsFollowNode;
+	bool IsInheritPositionOnly;
+	std::string NodeName;
+	Hedgehog::math::CVector Translation;
+	Hedgehog::math::CQuaternion Rotation;
+	Hedgehog::math::CVector Scale;
+};
 struct Resource
 {
 	int ID;
 	ResourceType Type;
 	Param Params;
-
 };
 struct ResourceInfo
 {
-	std::vector< Resource> Resources;
+	std::vector<Resource> Resources;
+};
+struct TriggerInfo
+{
+	std::vector<Trigger> Resources;
 };
 struct EffectConfig
 {
@@ -85,6 +105,7 @@ struct WerehogAttackNew
 	float ActionValidHeightMin;
 	bool IsGravity;
 	ResourceInfo ResourceInfos;
+	TriggerInfo TriggerInfos;
 	Motion Werehog_AssociatedMotion;
 	//From the respective attacks tbres files
 

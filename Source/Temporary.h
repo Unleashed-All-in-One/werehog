@@ -85,6 +85,7 @@ namespace Sonic::Player
             BB_FUNCTION_PTR(void, __thiscall, MovementRoutine, 0x00E37FD0, void* This);
             MovementRoutine(this);
         }
+
     };
     class CSonicStateStartCrouching : public Sonic::Player::CPlayerSpeedContext::CStateSpeedBase
     {
