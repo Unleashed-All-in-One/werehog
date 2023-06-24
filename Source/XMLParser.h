@@ -76,9 +76,11 @@ struct Motion {
 	int ShakeCameraStartFrame;
 	float GroundHeightRepair;
 	std::string MoveType;
-
 	std::string ComposedFileName;
 	EffectConfig Effect;
+
+	ResourceInfo ResourceInfos;
+	TriggerInfo TriggerInfos;
 };
 struct WerehogAttackNew
 {
@@ -104,8 +106,6 @@ struct WerehogAttackNew
 	float LandStartFrame;
 	float ActionValidHeightMin;
 	bool IsGravity;
-	ResourceInfo ResourceInfos;
-	TriggerInfo TriggerInfos;
 	Motion Werehog_AssociatedMotion;
 	//From the respective attacks tbres files
 

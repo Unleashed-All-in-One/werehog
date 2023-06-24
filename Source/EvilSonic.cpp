@@ -12,6 +12,7 @@ SharedPtrTypeless ringParticle_L, ringParticle_R;
 SharedPtrTypeless thumbParticle_L, thumbParticle_R;
 SharedPtrTypeless punch, referenceEffect;
 SharedPtrTypeless shield;
+SharedPtrTypeless genericEffect;
 SharedPtrTypeless berserk[5];
 std::vector<Sonic::EKeyState> currentButtonChain;
 WerehogAttackNew attackCache;
@@ -141,6 +142,15 @@ Motion GetMotionFromName(std::string in)
 			return XMLParser::animationTable[i];
 	}
 }
+WerehogAttackNew GetAttackFromName(std::string in)
+{
+	auto motion = GetMotionFromName(lastAttackName);
+	for (size_t i = 0; i < XMLParser::attacks.size(); i++)
+	{
+		if (XMLParser::attacks[i].MotionName == motion.MotionName)
+			return XMLParser::attacks[i];
+	}
+}
 void SetsHighSpeedVectorAndAppliesGravity(void* doc)
 {
 	uint32_t func = 0x00E4F100;
@@ -247,17 +257,23 @@ public:
 
 		if (spAnimInfo->m_Frame >= m_CurrentMotion.MotionSpeed_FirstFrame && spAnimInfo->m_Frame < m_CurrentMotion.MotionSpeed_MiddleFrame)
 		{
-			Common::ClampFloat(m_CurrentMotion.MotionMoveSpeedRatio, 0.0001f, 50);
-			Common::ClampFloat(m_CurrentMotion.MotionMoveSpeedRatio_H[0].FrameValue, 0.0001f, 50);
-			ms_AlteredVelocity = GetForward() * (m_CurrentMotion.MotionMoveSpeedRatio / m_CurrentMotion.MotionMoveSpeedRatio_H[0].FrameValue);
-			//		
-			context->m_Velocity = ms_AlteredVelocity;
+			if (m_CurrentMotion.MotionMoveSpeedRatio != 0 && m_CurrentMotion.MotionMoveSpeedRatio_H[0].FrameValue != 0)
+			{
+				float velocity = m_CurrentMotion.MotionMoveSpeedRatio / m_CurrentMotion.MotionMoveSpeedRatio_H[0].FrameValue;
+				if (abs(velocity) != 0 && !std::isnan(velocity))
+				{
+					ms_AlteredVelocity = GetForward() * velocity;
+					if(m_CurrentMotion.MotionMoveSpeedRatio_H_Y.size() > 0)
+					ms_AlteredVelocity.y() = m_CurrentMotion.MotionMoveSpeedRatio_H_Y[0].FrameValue;
+					context->m_Velocity = ms_AlteredVelocity;
+				}
+			}
 		}
 		else
 			context->m_Velocity = ms_InitialVelocity;
 
-		auto triggers = XMLParser::attacks.at(lastAttackIndex).TriggerInfos;
-		auto resources = XMLParser::attacks.at(lastAttackIndex).ResourceInfos;
+		auto triggers = m_CurrentMotion.TriggerInfos;
+		auto resources = m_CurrentMotion.ResourceInfos;
 		bool skip = false;
 		for (size_t i = m_LastTriggerIndex; i < triggers.Resources.size(); i++)
 		{
@@ -272,9 +288,19 @@ public:
 						m_LastTriggerIndex = i +1;
 						if (resources.Resources[x].Type == ResourceType::CSB)
 						{
-							Common::PlaySoundStaticCueName(sound, resources.Resources[i].Params.Cue.c_str());
-							skip = true;
-							break;
+							if (!resources.Resources[i].Params.Cue.empty())
+							{
+								Common::PlaySoundStaticCueName(sound, resources.Resources[i].Params.Cue.c_str());
+								skip = true;
+								break;
+							}
+						}
+						if (resources.Resources[x].Type == ResourceType::Effect)
+						{
+							//genericEffect
+							auto bone = context->m_pPlayer->m_spCharacterModel->GetNode(triggers.Resources[x].NodeName.c_str());
+							if (!genericEffect)
+								Common::fCGlitterCreate(context->m_pPlayer->m_spContext.get(), genericEffect, &bone, resources.Resources[x].Params.FileName.c_str(), 1);
 						}
 					}
 				}				
@@ -588,7 +614,7 @@ void ExecuteAttackCommand(std::string attack, int attackIndex, bool starter = fa
 	/*Common::PlaySoundStatic(sound, attacks.at(attackIndex).cueIDs[comboIndex]);*/
 	lastAttackName = attack;
 
-	auto resourcelist = XMLParser::attacks.at(attackIndex).ResourceInfos.Resources;
+	auto resourcelist = XMLParser::animationTable.at(attackIndex).ResourceInfos.Resources;
 	int resourceIndex = 0;
 	int effectIndex = 0;
 	for (size_t i = 0; i < resourcelist.size(); i++)

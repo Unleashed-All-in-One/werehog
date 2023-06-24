@@ -237,15 +237,15 @@ void RegisterResources(const char* path)
 	}
 	for (size_t i = 0; i < XMLParser::animationTable.size(); i++)
 	{
-		int attackPos = 0;
-		for (size_t a = 0; a < XMLParser::attacks.size(); a++)
+		int attackPos = i;
+		/*for (size_t a = 0; a < XMLParser::attacks.size(); a++)
 		{
 			if (XMLParser::attacks.at(a).MotionName == XMLParser::animationTable.at(i).MotionName)
 			{
 				attackPos = a;
 				break;
 			}
-		}
+		}*/
 		std::string filepath = std::format("{0}attack/{1}.tbres.xml", modDir, XMLParser::animationTable.at(i).FileName);
 		FILE* file = fopen(filepath.c_str(), "rb");
 		if (file == nullptr)
@@ -260,77 +260,89 @@ void RegisterResources(const char* path)
 		printf(std::format("\nParsing {0}...", XMLParser::animationTable.at(i).FileName).c_str());
 		doc.parse<0>(&buffer[0]);
 		auto resourceNode = doc.first_node();
-		Resource res;
-		Trigger trig;
 		int id = 0;
 		//Add trigger functionality too once everything else is done
-		for (rapidxml::xml_node<>* child = resourceNode->first_node(); child; child = child->next_sibling())
+		for (rapidxml::xml_node<>* TriggerBinderResource_Child = resourceNode->first_node(); TriggerBinderResource_Child; TriggerBinderResource_Child = TriggerBinderResource_Child->next_sibling())
 		{
-			if (isPartOf(child->name(), "ResourceInfo"))
+			if (isPartOf(TriggerBinderResource_Child->name(), "ResourceInfo"))
 			{
-				auto resource = child->first_node();
-				for (rapidxml::xml_node<>* child2 = resource->first_node(); child2; child2 = child2->next_sibling())
+				auto resource = TriggerBinderResource_Child->first_node();
+				Resource res;
+
+				for (rapidxml::xml_node<>* ResourceInfo_Child = resource->first_node(); ResourceInfo_Child; ResourceInfo_Child = ResourceInfo_Child->next_sibling())
 				{
-					auto name = child2->name();
+					auto name = ResourceInfo_Child->name();
 					if (isPartOf(name, "ID"))
 						res.ID = id;
 					if (isPartOf(name, "Type"))
-						res.Type = isPartOf(child2->value(), "CSB") ? ResourceType::CSB : ResourceType::Effect;
+						res.Type = isPartOf(ResourceInfo_Child->value(), "CSB") ? ResourceType::CSB : ResourceType::Effect;
 					if (isPartOf(name, "Param"))
 					{
 						Param p;
-						p.FileName = child2->first_node()->value();
-						if (child2->first_node()->next_sibling() != nullptr)
-							p.Cue = child2->first_node()->next_sibling()->value();
+						p.FileName = ResourceInfo_Child->first_node()->value();
+						if (ResourceInfo_Child->first_node()->next_sibling() != nullptr)
+							p.Cue = ResourceInfo_Child->first_node()->next_sibling()->value();
 						res.Params = p;
+					
 					}
 				}
-				XMLParser::attacks.at(attackPos).ResourceInfos.Resources.push_back(res);
+				XMLParser::animationTable.at(attackPos).ResourceInfos.Resources.push_back(res);
 			}	
-			else if (isPartOf(child->name(), "TriggerInfo"))
+			else if (isPartOf(TriggerBinderResource_Child->name(), "TriggerInfo"))
 			{
-				auto trigger = child->first_node();
-				for (rapidxml::xml_node<>* child2 = trigger->first_node(); child2; child2 = child2->next_sibling())
+				int indexChildTemp = 0;
+				for (rapidxml::xml_node<>* TriggerInfo_Child = TriggerBinderResource_Child->first_node(); TriggerInfo_Child; TriggerInfo_Child = TriggerInfo_Child->next_sibling())
 				{
-
-					auto name = child2->name();
-					if (isPartOf(name, "ResourceID"))
+					indexChildTemp++;
+					Trigger trig;
+					for (rapidxml::xml_node<>* TriggerInfo_Trigger_Child = TriggerInfo_Child->first_node(); TriggerInfo_Trigger_Child; TriggerInfo_Trigger_Child = TriggerInfo_Trigger_Child->next_sibling())
 					{
-						trig.ResourceID = std::stoi(child2->value());
-					}
-					if (isPartOf(name, "Frame"))
-					{
-						for (rapidxml::xml_node<>* child3 = child2->first_node(); child3; child3 = child3->next_sibling())
+						auto name = TriggerInfo_Trigger_Child->name();
+						if (isPartOf(name, "ResourceID"))
 						{
-							auto name2 = child3->name();
-							if (isPartOf(name2, "Type"))
+							trig.ResourceID = std::stoi(TriggerInfo_Trigger_Child->value());
+							continue;
+						}
+						if (isPartOf(name, "Frame"))
+						{
+							for (rapidxml::xml_node<>* child3 = TriggerInfo_Trigger_Child->first_node(); child3; child3 = child3->next_sibling())
 							{
-								trig.Frame.Type = std::stoi(child3->value());
-							}
-							if (isPartOf(name2, "Start"))
-							{
-								trig.Frame.Start = std::stoi(child3->value());
-							}
-							if (isPartOf(name2, "End"))
-							{
-								trig.Frame.End = std::stoi(child3->value());
+								auto name2 = child3->name();
+								if (isPartOf(name2, "Type"))
+								{
+									trig.Frame.Type = std::stoi(child3->value());
+									continue;
+								}
+								if (isPartOf(name2, "Start"))
+								{
+									trig.Frame.Start = std::stoi(child3->value());
+									continue;
+								}
+								if (isPartOf(name2, "End"))
+								{
+									trig.Frame.End = std::stoi(child3->value());
+									continue;
+								}
 							}
 						}
+						if (isPartOf(name, "IsFollowNode"))
+						{
+							trig.IsFollowNode = TriggerInfo_Trigger_Child->value() == "true";
+							continue;
+						}
+						if (isPartOf(name, "IsInheritPositionOnly"))
+						{
+							trig.IsInheritPositionOnly = TriggerInfo_Trigger_Child->value() == "true";
+							continue;
+						}
+						if (isPartOf(name, "NodeName"))
+						{
+							trig.NodeName = TriggerInfo_Trigger_Child->value();
+							continue;
+						}
 					}
-					if (isPartOf(name, "IsFollowNode"))
-					{
-						trig.IsFollowNode = child2->value() == "true";
-					}
-					if (isPartOf(name, "IsInheritPositionOnly"))
-					{
-						trig.IsInheritPositionOnly = child2->value() == "true";
-					}
-					if (isPartOf(name, "NodeName"))
-					{
-						trig.NodeName = child2->value();
-					}
+					XMLParser::animationTable.at(attackPos).TriggerInfos.Resources.push_back(trig);
 				}
-				XMLParser::attacks.at(attackPos).TriggerInfos.Resources.push_back(trig);
 			}
 			id++;			
 		}
