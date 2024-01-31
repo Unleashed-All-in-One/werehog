@@ -45,6 +45,19 @@ bool init = false;
 boost::shared_ptr<Sonic::CGameObject3D> collision1;
 
 
+class MsgDamage : public Hedgehog::Universe::MessageTypeSet
+{
+public:
+	HH_FND_MSG_MAKE_TYPE(0x01681E80);
+
+	Hedgehog::Math::CVector* position;
+	int* mask;
+	Hedgehog::Math::CQuaternion* rotation;
+	int flag;
+
+
+};
+
 
 void sub_E78310(Sonic::Player::CPlayer* player)
 {
@@ -87,12 +100,12 @@ public:
 		m_spMatrixNodeTransform->m_Transform.SetPosition(CVector(0, 0, 0));
 		AddRenderable("Object", m_spRenderable, true);
 
-		// Now we set up our havok shape.
-		const CVector railHalfExtents = CVector(1.0f, 1.0f, 1.0f);
 
-		Havok::BoxShape* shapeRail = new Havok::BoxShape(railHalfExtents * 0.5f);
-		AddRigidBody(m_spRigidBody, shapeRail, *pColID_Common, m_spMatrixNodeTransform);
-		shapeRail->removeReference();
+		//// Now we set up our havok shape.
+		//const CVector railHalfExtents = CVector(1.0f, 1.0f, 1.0f);
+
+		//Havok::BoxShape* shapeRail = new Havok::BoxShape(railHalfExtents * 0.5f);
+		//shapeRail->removeReference();
 
 
 
@@ -101,14 +114,30 @@ public:
 		// -----------------------
 
 		m_spNodeEventCollision = boost::make_shared<Sonic::CMatrixNodeTransform>();
-		m_spNodeEventCollision->m_Transform.SetPosition(CVector(0, 2, 0));
+		m_spNodeEventCollision->m_Transform.SetPosition(CVector(0, 0, 0));
 		m_spNodeEventCollision->NotifyChanged();
 		m_spNodeEventCollision->SetParent(m_spMatrixNodeTransform.get());
+		//void __thiscall sub_10C0E00(_DWORD *this, int a2)
+		FUNCTION_PTR(void, __thiscall, sub_10C0E00, 0x10C0E00, boost::shared_ptr<CRigidBody> ThisV, int a2);
+		Havok::BoxShape* shapeEventTrigger = new Havok::BoxShape(6, 6, 6);
+		//AddRigidBody(m_spRigidBody, shapeEventTrigger, *pColID_Unknown5, m_spMatrixNodeTransform);
 
-		Havok::BoxShape* shapeEventTrigger = new Havok::BoxShape(2, 2, 2);
-		AddEventCollision("Damage", shapeEventTrigger, *pColID_Common, true, m_spNodeEventCollision);
-		shapeEventTrigger->removeReference();
 
+		//AddEventCollision("Damage", shapeEventTrigger, *pColID_Unknown5, true, m_spNodeEventCollision);
+		//shapeEventTrigger->removeReference();
+
+	}
+	virtual void Update()
+	{
+		//_DWORD *__cdecl sub_45B330(_DWORD *out_Message, int *collisionFlagMaybe, Hedgehog::Math::CVector *playerPos, Hedgehog::Math::CQuaternion *rotation, int *flag)
+		FUNCTION_PTR(MsgDamage*, __cdecl, sub_45B330, 0x45B330, boost::shared_ptr<MsgDamage> out_message, int* colflag, CVector * pos, CQuaternion * rot, int* flag);
+		auto playerContext = Sonic::Player::CPlayerSpeedContext::GetInstance();
+		MsgDamage dmg = MsgDamage();
+		const auto spAnimInfo = boost::make_shared<MsgDamage>();
+		auto temp = CQuaternion::Identity();
+		int flag = 32;
+		sub_45B330(spAnimInfo, (int*)0x01E0BE30, &playerContext->m_spMatrixNode->m_Transform.m_Position, &temp, &flag);
+		playerContext->m_pPlayer->SendMessageImm(playerContext->m_pPlayer->m_ActorID, spAnimInfo);
 	}
 };
 enum WerehogState
@@ -232,7 +261,7 @@ public:
 		m_LastFrame = -1;
 		m_LastActionIndex = 0;
 		m_LastTriggerIndex = 0;
-		ms_InitialVelocity = CVector(0,0,0);
+		ms_InitialVelocity = CVector(0, 0, 0);
 		ms_AlteredVelocity = ms_InitialVelocity;
 		context->m_pPlayer->m_PostureStateMachine.ChangeState<CStateAttackAction_byList_Posture>();
 	}
@@ -263,8 +292,8 @@ public:
 				if (abs(velocity) != 0 && !std::isnan(velocity))
 				{
 					ms_AlteredVelocity = GetForward() * velocity;
-					if(m_CurrentMotion.MotionMoveSpeedRatio_H_Y.size() > 0)
-					ms_AlteredVelocity.y() = m_CurrentMotion.MotionMoveSpeedRatio_H_Y[0].FrameValue;
+					if (m_CurrentMotion.MotionMoveSpeedRatio_H_Y.size() > 0)
+						ms_AlteredVelocity.y() = m_CurrentMotion.MotionMoveSpeedRatio_H_Y[0].FrameValue;
 					context->m_Velocity = ms_AlteredVelocity;
 				}
 			}
@@ -285,12 +314,12 @@ public:
 				{
 					if (resources.Resources[x].ID == triggers.Resources[i].ResourceID)
 					{
-						m_LastTriggerIndex = i +1;
+						m_LastTriggerIndex = i + 1;
 						if (resources.Resources[x].Type == ResourceType::CSB)
 						{
-							if (!resources.Resources[i].Params.Cue.empty())
+							if (!resources.Resources[x].Params.Cue.empty())
 							{
-								Common::PlaySoundStaticCueName(sound, resources.Resources[i].Params.Cue.c_str());
+								Common::PlaySoundStaticCueName(sound, resources.Resources[x].Params.Cue.c_str());
 								skip = true;
 								break;
 							}
@@ -303,7 +332,7 @@ public:
 								Common::fCGlitterCreate(context->m_pPlayer->m_spContext.get(), genericEffect, &bone, resources.Resources[x].Params.FileName.c_str(), 1);
 						}
 					}
-				}				
+				}
 			}
 		}
 		if (spAnimInfo->m_Frame >= m_CurrentMotion.MotionSpeed_MiddleFrame)
@@ -378,7 +407,7 @@ public:
 		//FUNCTION_PTR(char, __thiscall, DEF0A0, 0xDEF0A0, Sonic::Player::CPlayerSpeedContext::CStateSpeedBase * This);
 		//DEF0A0(this);
 	}
-	
+
 };
 
 // Func for adding the test state.
@@ -609,7 +638,10 @@ void ExecuteAttackCommand(std::string attack, int attackIndex, bool starter = fa
 	lastAttackIndex = attackIndex;
 	auto playerContext = Sonic::Player::CPlayerSpeedContext::GetInstance();
 	Common::SonicContextSetCollision(SonicCollision::TypeSonicSquatKick, true);
-	Common::CreatePlayerSupportShockWave(playerContext->m_spMatrixNode->m_Transform.m_Position, 0.15f, 5, 0.1f);
+
+	auto node = playerContext->m_pPlayer->m_spCharacterModel->GetNode("Hand_R");
+
+	Common::CreatePlayerSupportShockWave(playerContext->m_spMatrixNode->m_Transform.m_Position + (playerContext->m_spMatrixNode->m_Transform.m_Rotation * CVector(0, 0, 2)), 2, 2, 0.5f);
 	PlayAnim(GetStateNameFromTable(attack));
 	/*Common::PlaySoundStatic(sound, attacks.at(attackIndex).cueIDs[comboIndex]);*/
 	lastAttackName = attack;
@@ -850,7 +882,7 @@ HOOK(void, __fastcall, Jump_PlayAnimation, 0x01235250, int This)
 				PlayAnim("Evilsonic_dash_jumpS");
 			}
 			else
-			PlayAnim("JumpEvil1");
+				PlayAnim("JumpEvil1");
 
 			Common::PlaySoundStatic(sound, 42);
 		}
@@ -935,7 +967,7 @@ HOOK(void, __fastcall, CHudSonicStageUpdateParallel, 0x1098A50, Sonic::CGameObje
 {
 	originalCHudSonicStageUpdateParallel(This, Edx, in_rUpdateInfo);
 	deltaTime = in_rUpdateInfo.DeltaTime;
-	
+
 	const auto playerContext = Sonic::Player::CPlayerSpeedContext::GetInstance();
 	if (abs(playerContext->m_Velocity.x() + playerContext->m_Velocity.z()) > 0)
 		tempTimerWalk += in_rUpdateInfo.DeltaTime;
@@ -945,7 +977,7 @@ HOOK(void, __fastcall, CHudSonicStageUpdateParallel, 0x1098A50, Sonic::CGameObje
 	playerContext->m_pPlayer->SendMessageImm(playerContext->m_pPlayer->m_ActorID, spAnimInfo);
 	Hedgehog::Base::CSharedString stateCheck = playerContext->m_pPlayer->m_StateMachine.GetCurrentState()->GetStateName();
 	std::string stateCheckS(stateCheck.c_str());
-	DebugDrawText::log((std::string("Current Player Anim: ") + std::string(spAnimInfo->m_Name.c_str())).c_str(), 0);	
+	DebugDrawText::log((std::string("Current Player Anim: ") + std::string(spAnimInfo->m_Name.c_str())).c_str(), 0);
 	DebugDrawText::log((std::string("tempTimerWalk: ") + std::to_string(tempTimerWalk)).c_str(), 0);
 
 	DebugDrawText::log((std::string("Current Player State: ") + stateCheckS).c_str(), 0);
@@ -1018,10 +1050,10 @@ HOOK(void, __fastcall, CHudSonicStageUpdateParallel, 0x1098A50, Sonic::CGameObje
 	}
 	if (inputPtr->IsDown(eKeyState_DpadDown))
 	{
-		/*auto node = playerContext->m_pPlayer->m_spCharacterModel->GetNode("Hand_R");
+		auto node = playerContext->m_pPlayer->m_spCharacterModel->GetNode("Hand_R");
 
 		collision1 = boost::make_shared<CBasicSphere>();
-		Sonic::CGameDocument::GetInstance()->AddGameObject(collision1);*/
+		Sonic::CGameDocument::GetInstance()->AddGameObject(collision1);
 	}
 	if ((inputPtr->IsDown(eKeyState_RightBumper) && CONTEXT->m_ChaosEnergy == 100.0f) && !unleashMode && isGrounded)
 	{
@@ -1048,7 +1080,7 @@ HOOK(void, __fastcall, CHudSonicStageUpdateParallel, 0x1098A50, Sonic::CGameObje
 		shield.reset();
 	}
 	CheckForThinPlatform();
-	
+
 	if (inputPtr->IsDown(Sonic::eKeyState_RightTrigger))
 	{
 		currentState = WerehogState::Dash;
@@ -1059,11 +1091,13 @@ HOOK(void, __fastcall, CHudSonicStageUpdateParallel, 0x1098A50, Sonic::CGameObje
 	}
 	if (!playingAttack && isGrounded)
 	{
+
+		DebugDrawText::log(std::format("SPEED_MAGNITUDE: {0}", abs(playerContext->m_Velocity.norm())).c_str(), 0);
 		const auto spAnimInfo = boost::make_shared<Sonic::Message::MsgGetAnimationInfo>();
 		playerContext->m_pPlayer->SendMessageImm(playerContext->m_pPlayer->m_ActorID, spAnimInfo);
 		if (currentState == WerehogState::Dash)
 		{
-			if (abs(playerContext->m_Velocity.x()) >= 12 || abs(playerContext->m_Velocity.z()) >= 12)
+			if (abs(playerContext->m_Velocity.norm() > 12))
 			{
 				if ((!IsCurrentAnimationName("Evilsonic_dash"))
 					|| (IsCurrentAnimationName("Evilsonic_dash") && spAnimInfo->m_Frame >= 10))
@@ -1074,11 +1108,10 @@ HOOK(void, __fastcall, CHudSonicStageUpdateParallel, 0x1098A50, Sonic::CGameObje
 		}
 		if (currentState == WerehogState::Normal)
 		{
-		/*	if(std::strstr(spAnimInfo->m_Name.c_str(), "Evilsonic_dash") != nullptr)
-				PlayAnim("Evilsonic_dashE");*/
-
-			if (abs(playerContext->m_Velocity.x()) >= 5 || abs(playerContext->m_Velocity.z()) >= 5)
-			{ 
+			/*	if(std::strstr(spAnimInfo->m_Name.c_str(), "Evilsonic_dash") != nullptr)
+					PlayAnim("Evilsonic_dashE");*/
+			if (abs(playerContext->m_Velocity.norm() > 5))
+			{
 				if ((!IsCurrentAnimationName("Evilsonic_run"))
 					|| (IsCurrentAnimationName("Evilsonic_run") && spAnimInfo->m_Frame >= 51))
 					PlayAnim("Evilsonic_run");
@@ -1170,6 +1203,7 @@ HOOK(void, __fastcall, CHudSonicStageUpdateParallel, 0x1098A50, Sonic::CGameObje
 		if (jumpcount == 1 && canJump)
 		{
 			canJump = false;
+			Sonic::Player::CPlayerSpeedContext::GetInstance()->m_Velocity.y() = 0;
 			AddJumpThrust(Sonic::Player::CPlayerSpeedContext::GetInstance(), true);
 			Common::PlaySoundStatic(sound, 42);
 
@@ -1274,7 +1308,7 @@ void EvilSonic::Install()
 	CustomAnimationManager::RegisterAnimation("Evilsonic_dashS", "evilsonic_dashS");
 	CustomAnimationManager::RegisterAnimation("Evilsonic_dash", "evilsonic_dash");
 	CustomAnimationManager::RegisterAnimation("Evilsonic_start", "evilsonic_start");
-	
+
 	CustomAnimationManager::RegisterAnimation("Evilsonic_runS", "evilsonic_runS");
 	CustomAnimationManager::RegisterAnimation("Evilsonic_run", "evilsonic_run", 3);
 	CustomAnimationManager::RegisterAnimation("Evilsonic_runE", "evilsonic_runE");
@@ -1286,7 +1320,7 @@ void EvilSonic::Install()
 	//INSTALL_HOOK(XButtonInput);
 	//INSTALL_HOOK(CSonicSetMaxSpeedBasis);
 	//INSTALL_HOOK(sub_BE0790);
-	
+
 	//runE = walk stop
 	//runS = walk start
 	//run = walk
@@ -1298,13 +1332,14 @@ void EvilSonic::Install()
 	INSTALL_HOOK(XButtonHoming_ChangeToHomingAttack);
 	INSTALL_HOOK(SetClassicMaxVelocity);
 	INSTALL_HOOK(GetClassicMaxVelocity);
+	INSTALL_HOOK(GetClassicMaxVelocity);
 	INSTALL_HOOK(JumpStart);
 	INSTALL_HOOK(Jump_PlayAnimation);
 	INSTALL_HOOK(CPlayerAddCallback);
 	INSTALL_HOOK(ProcMsgRestartStage);
 	INSTALL_HOOK(CClassicSonicProcMsgDamage);
 	INSTALL_HOOK(CHudSonicStageUpdateParallel);
-	
+
 	INSTALL_HOOK(WalkUpdate);
 	INSTALL_HOOK(HomingBegin);
 	INSTALL_HOOK(StandCalc);
