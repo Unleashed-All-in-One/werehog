@@ -953,6 +953,21 @@ namespace Common
 		fCreatePlayerSupportShockWave(spObject, &pos, { height, radius, duration, Sonic::Player::CPlayerSpeedContext::GetInstance()->m_pPlayer->m_ActorID });
 		Sonic::CGameDocument::GetInstance()->AddGameObject(spObject);
 	}
+	inline boost::shared_ptr<Sonic::CGameObject3D> CreatePlayerSupportShockWaveReturnGameObject(hh::math::CVector const& pos, float height, float radius, float duration)
+	{
+		struct ShockWaveParam
+		{
+			float m_height;
+			float m_radius;
+			float m_duration;
+			size_t m_actorID;
+		};
+		FUNCTION_PTR(void*, __cdecl, fCreatePlayerSupportShockWave, 0x123D090, boost::shared_ptr<Sonic::CGameObject3D>&spObject, hh::math::CVector const* pos, ShockWaveParam const& param);
+		boost::shared_ptr<Sonic::CGameObject3D> spObject;
+		fCreatePlayerSupportShockWave(spObject, &pos, { height, radius, duration, Sonic::Player::CPlayerSpeedContext::GetInstance()->m_pPlayer->m_ActorID });
+		Sonic::CGameDocument::GetInstance()->AddGameObject(spObject);
+		return spObject;
+	}
 	static void* fCGlitterCreate
 	(
 		void* pContext,

@@ -119,7 +119,9 @@ public:
 	static std::vector<WerehogAttackNew> starterAttacks;
 	static std::vector<Motion> animationTable;
 	static std::string CLAWPARTICLE;
-
+	static Motion GetMotionFromName(std::string in);
+	static WerehogAttackNew GetAttackFromName(std::string in);
+	static std::string GetStateNameFromTable(std::string in);
 
 };
 

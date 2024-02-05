@@ -2,6 +2,12 @@
 using namespace hh::math;
 using namespace Sonic;
 
+enum WerehogState
+{
+	Normal,
+	Dash,
+	Guard
+};
 
 SharedPtrTypeless sound, soundUnleash, soundUnleashStart;
 SharedPtrTypeless soundRegularJump;
@@ -43,6 +49,7 @@ bool cameraAnimTempExecuted = false;
 //find a better way please
 bool init = false;
 boost::shared_ptr<Sonic::CGameObject3D> collision1;
+boost::shared_ptr<Sonic::CGameObject3D> shockwaveGameObject;
 
 
 class MsgDamage : public Hedgehog::Universe::MessageTypeSet
@@ -120,7 +127,7 @@ public:
 		//void __thiscall sub_10C0E00(_DWORD *this, int a2)
 		FUNCTION_PTR(void, __thiscall, sub_10C0E00, 0x10C0E00, boost::shared_ptr<CRigidBody> ThisV, int a2);
 		Havok::BoxShape* shapeEventTrigger = new Havok::BoxShape(6, 6, 6);
-		//AddRigidBody(m_spRigidBody, shapeEventTrigger, *pColID_Unknown5, m_spMatrixNodeTransform);
+		AddRigidBody(m_spRigidBody, shapeEventTrigger, *pColID_Unknown5, m_spMatrixNodeTransform);
 
 
 		//AddEventCollision("Damage", shapeEventTrigger, *pColID_Unknown5, true, m_spNodeEventCollision);
@@ -139,12 +146,6 @@ public:
 		sub_45B330(spAnimInfo, (int*)0x01E0BE30, &playerContext->m_spMatrixNode->m_Transform.m_Position, &temp, &flag);
 		playerContext->m_pPlayer->SendMessageImm(playerContext->m_pPlayer->m_ActorID, spAnimInfo);
 	}
-};
-enum WerehogState
-{
-	Normal,
-	Dash,
-	Guard
 };
 WerehogState currentState;
 
@@ -209,22 +210,27 @@ public:
 			call func
 		}
 	}
-	void EnterState() override
-	{
-	}
+
 	Sonic::Player::CPlayerSpeedContext* GetContext() const
 	{
 		return static_cast<Sonic::Player::CPlayerSpeedContext*>(m_pContext);
+	}
+	void EnterState() override
+	{
+		GetContext()->m_Velocity = CVector(0, 0, 0);
 	}
 	void UpdateState() override
 	{
 		void* vtable = *(void**)this;
 		BB_FUNCTION_PTR(void, __thiscall, MovementRoutine, 0x00E37FD0, void* This);
+		//if(isGrounded)
 		MovementRoutine(this);
 		auto context = GetContext();
 		const auto playerContext = Sonic::Player::CPlayerSpeedContext::GetInstance();
 		Common::ClampFloat(attackVelocityDivider, 0.001f, 100);
-		playerContext->m_spMatrixNode->m_Transform.SetPosition(playerContext->m_spMatrixNode->m_Transform.m_Position += (playerContext->m_Velocity / attackVelocityDivider));
+		CVector velocityWithoutY = playerContext->m_Velocity;
+		velocityWithoutY.y() = 0;
+		playerContext->m_spMatrixNode->m_Transform.SetPosition(playerContext->m_spMatrixNode->m_Transform.m_Position += (velocityWithoutY / attackVelocityDivider));
 		//int __stdcall PostMovement(CSonicContext *sonicContext)
 
 		FUNCTION_PTR(int, __stdcall, PostMov, 0x00E63530, void* context);
@@ -263,6 +269,7 @@ public:
 		m_LastTriggerIndex = 0;
 		ms_InitialVelocity = CVector(0, 0, 0);
 		ms_AlteredVelocity = ms_InitialVelocity;
+		context->m_Velocity = ms_InitialVelocity;
 		context->m_pPlayer->m_PostureStateMachine.ChangeState<CStateAttackAction_byList_Posture>();
 	}
 	void UpdateState() override
@@ -281,8 +288,13 @@ public:
 		{
 			context->m_pPlayer->m_PostureStateMachine.ChangeState("Standard");
 			context->ChangeState("Stand");
+			shockwaveGameObject->SendMessage(shockwaveGameObject->m_ActorID, boost::make_shared<Sonic::Message::MsgKill>());
+			return;
 		}
-
+		if (shockwaveGameObject)
+		{
+			shockwaveGameObject->m_spMatrixNodeTransform->m_Transform.m_Position = context->m_spMatrixNode->m_Transform.m_Position + (context->m_spMatrixNode->m_Transform.m_Rotation * CVector(0, 0, 2));
+		}
 
 		if (spAnimInfo->m_Frame >= m_CurrentMotion.MotionSpeed_FirstFrame && spAnimInfo->m_Frame < m_CurrentMotion.MotionSpeed_MiddleFrame)
 		{
@@ -640,8 +652,10 @@ void ExecuteAttackCommand(std::string attack, int attackIndex, bool starter = fa
 	Common::SonicContextSetCollision(SonicCollision::TypeSonicSquatKick, true);
 
 	auto node = playerContext->m_pPlayer->m_spCharacterModel->GetNode("Hand_R");
-
-	Common::CreatePlayerSupportShockWave(playerContext->m_spMatrixNode->m_Transform.m_Position + (playerContext->m_spMatrixNode->m_Transform.m_Rotation * CVector(0, 0, 2)), 2, 2, 0.5f);
+	DebugDrawText::log(std::format("Matrix 0 {0}, {1}, {2}", node->GetWorldMatrix().data()[0], node->GetWorldMatrix().data()[1], node->GetWorldMatrix().data()[2]).c_str(), 10);
+	if(shockwaveGameObject != nullptr)
+		shockwaveGameObject->SendMessage(shockwaveGameObject->m_ActorID, boost::make_shared<Sonic::Message::MsgKill>());
+	shockwaveGameObject = Common::CreatePlayerSupportShockWaveReturnGameObject(playerContext->m_spMatrixNode->m_Transform.m_Position + (playerContext->m_spMatrixNode->m_Transform.m_Rotation * CVector(0, 0, 2)), 2, 2, 100);
 	PlayAnim(GetStateNameFromTable(attack));
 	/*Common::PlaySoundStatic(sound, attacks.at(attackIndex).cueIDs[comboIndex]);*/
 	lastAttackName = attack;
@@ -666,7 +680,7 @@ void ExecuteAttackCommand(std::string attack, int attackIndex, bool starter = fa
 		}
 	}
 	playerContext->m_pPlayer->m_StateMachine.ChangeState<CStateAttackAction_byList>();
-	AddImpulse((playerContext->m_spMatrixNode->m_Transform.m_Rotation * Eigen::Vector3f::UnitZ()) * ((GetMotionFromName(attack).MotionMoveSpeedRatio) * 10), true);
+	AddImpulse(((playerContext->m_spMatrixNode->m_Transform.m_Rotation * Eigen::Vector3f::UnitZ()) * ((GetMotionFromName(attack).MotionMoveSpeedRatio) * 10)) * 100, true);
 	sound.reset();
 	lastMusicCue = resourcelist[resourceIndex].Params.Cue;
 	Common::PlaySoundStaticCueName(sound, Hedgehog::base::CSharedString(resourcelist[resourceIndex].Params.Cue.c_str()));

@@ -186,6 +186,7 @@
     <ClCompile Include="Configuration.cpp" />
     <ClCompile Include="CustomAnimationManager.cpp" />
     <ClCompile Include="EnemyBase.cpp" />
+    <ClCompile Include="EvilSonicStateAttackAction_ByList.cpp" />
     <ClCompile Include="Mod.cpp" />
     <ClCompile Include="Pch.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Create</PrecompiledHeader>

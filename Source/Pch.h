@@ -41,6 +41,7 @@
 
 
 #define DEBUG_DRAW_TEXT_DLL_IMPORT	
+#include "XMLParser.h"
 #include "DebugDrawText.h"	
 #include "Temporary.h"	
 #include "Testing.h"	
@@ -50,5 +51,4 @@
 
 #include "ArchiveTreePatcher.h"
 #include "Configuration.h"
-#include "XMLParser.h"
 #include "EvilSonic.h"
