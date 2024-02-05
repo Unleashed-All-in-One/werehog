@@ -51,18 +51,18 @@ bool init = false;
 boost::shared_ptr<Sonic::CGameObject3D> collision1;
 boost::shared_ptr<Sonic::CGameObject3D> shockwaveGameObject;
 
-
-class MsgDamage : public Hedgehog::Universe::MessageTypeSet
+struct  MsgDamage : public Hedgehog::Universe::MessageTypeSet
 {
 public:
 	HH_FND_MSG_MAKE_TYPE(0x01681E80);
-
-	Hedgehog::Math::CVector* position;
-	int* mask;
-	Hedgehog::Math::CQuaternion* rotation;
-	int flag;
-
-
+	BYTE gap4[12]; //padding
+	int* collisionMask; // seems like its not used?
+	DWORD m_Unknown1; //???
+	BYTE gap18[8];	//padding
+	CVector* m_HitPosition1; 
+	CVector* m_HitPosition2; // copy of m_HitPosition1?
+	CVector m_LaunchVelocity; // for objectphysics, determines how far the broken parts go
+	DWORD dword50; // unknown, seems to be either set to 0 or 1	
 };
 
 
@@ -76,76 +76,63 @@ void sub_E78310(Sonic::Player::CPlayer* player)
 		call func
 	};
 };
-class CBasicSphere : public Sonic::CGameObject3D
+class CAttackHitbox : public Sonic::CGameObject3D
 {
 public:
 	boost::shared_ptr<hh::mr::CSingleElement> m_spRenderable;
 	boost::shared_ptr<Sonic::CMatrixNodeTransform> m_spNodeEventCollision;
 	boost::shared_ptr<CRigidBody> m_spRigidBody;
-
 	virtual void AddCallback(const hh::base::THolder<Sonic::CWorld>& worldHolder,
 		Sonic::CGameDocument* pGameDocument, const boost::shared_ptr<hh::db::CDatabase>& spDatabase) override
 	{
 		Sonic::CApplicationDocument::GetInstance()->AddMessageActor("GameObject", this);
-		pGameDocument->AddUpdateUnit("0", this); // Worth looking into which updateuints do what, by the way.
+		pGameDocument->AddUpdateUnit("0", this);
+		//Uncomment for a debug sphere
+		//hh::mr::CMirageDatabaseWrapper wrapper(spDatabase.get());
+		//// This is a debug asset that has a broken material, so it will be pure red--but that's ok, cuz we can see it.
+		//const char* assetName = "BasicSphere";
+		//boost::shared_ptr<hh::mr::CModelData> spModelData = wrapper.GetModelData(assetName, 0);
 
-		hh::mr::CMirageDatabaseWrapper wrapper(spDatabase.get());
-		// This is a debug asset that has a broken material, so it will be pure red--but that's ok, cuz we can see it.
-		const char* assetName = "BasicSphere";
-		boost::shared_ptr<hh::mr::CModelData> spModelData = wrapper.GetModelData(assetName, 0);
+		//m_spRenderable = boost::make_shared<hh::mr::CSingleElement>(spModelData);
+		/*if (!spModelData)
+			return;*/
 
-		sizeof(Sonic::Player::CPlayerSpeedContext::CStateSpeedBase);
-		m_spRenderable = boost::make_shared<hh::mr::CSingleElement>(spModelData);
-		// Safeguard from crashing (last I checked this works, could crash if it doesn't exist anyway.)
-		if (!spModelData)
-			return;
+		//m_spRenderable->BindMatrixNode(m_spMatrixNodeTransform);
+		//AddRenderable("Object", m_spRenderable, true);
 		auto node = Sonic::Player::CPlayerSpeedContext::GetInstance()->m_pPlayer->m_spCharacterModel->GetNode("Hand_R");
 
-		m_spRenderable->BindMatrixNode(m_spMatrixNodeTransform);
 		m_spMatrixNodeTransform->NotifyChanged();
 		m_spMatrixNodeTransform->SetParent(node.get());
 		m_spMatrixNodeTransform->m_Transform.SetPosition(CVector(0, 0, 0));
-		AddRenderable("Object", m_spRenderable, true);
-
-
-		//// Now we set up our havok shape.
-		//const CVector railHalfExtents = CVector(1.0f, 1.0f, 1.0f);
-
-		//Havok::BoxShape* shapeRail = new Havok::BoxShape(railHalfExtents * 0.5f);
-		//shapeRail->removeReference();
-
-
-
-
-		// Event collision example
-		// -----------------------
 
 		m_spNodeEventCollision = boost::make_shared<Sonic::CMatrixNodeTransform>();
 		m_spNodeEventCollision->m_Transform.SetPosition(CVector(0, 0, 0));
 		m_spNodeEventCollision->NotifyChanged();
 		m_spNodeEventCollision->SetParent(m_spMatrixNodeTransform.get());
-		//void __thiscall sub_10C0E00(_DWORD *this, int a2)
-		FUNCTION_PTR(void, __thiscall, sub_10C0E00, 0x10C0E00, boost::shared_ptr<CRigidBody> ThisV, int a2);
-		Havok::BoxShape* shapeEventTrigger = new Havok::BoxShape(6, 6, 6);
-		AddRigidBody(m_spRigidBody, shapeEventTrigger, *pColID_Unknown5, m_spMatrixNodeTransform);
 
+		Havok::SphereShape* shapeEventTrigger = new Havok::SphereShape(1);
 
-		//AddEventCollision("Damage", shapeEventTrigger, *pColID_Unknown5, true, m_spNodeEventCollision);
-		//shapeEventTrigger->removeReference();
-
+		AddEventCollision("Attack", shapeEventTrigger, *pColID_ObjectPhysics1, true, m_spNodeEventCollision);
 	}
-	virtual void Update()
+	bool ProcessMessage(Hedgehog::Universe::Message& in_rMsg, bool in_Flag) override
 	{
-		//_DWORD *__cdecl sub_45B330(_DWORD *out_Message, int *collisionFlagMaybe, Hedgehog::Math::CVector *playerPos, Hedgehog::Math::CQuaternion *rotation, int *flag)
-		FUNCTION_PTR(MsgDamage*, __cdecl, sub_45B330, 0x45B330, boost::shared_ptr<MsgDamage> out_message, int* colflag, CVector * pos, CQuaternion * rot, int* flag);
-		auto playerContext = Sonic::Player::CPlayerSpeedContext::GetInstance();
-		MsgDamage dmg = MsgDamage();
-		const auto spAnimInfo = boost::make_shared<MsgDamage>();
-		auto temp = CQuaternion::Identity();
-		int flag = 32;
-		sub_45B330(spAnimInfo, (int*)0x01E0BE30, &playerContext->m_spMatrixNode->m_Transform.m_Position, &temp, &flag);
-		playerContext->m_pPlayer->SendMessageImm(playerContext->m_pPlayer->m_ActorID, spAnimInfo);
-	}
+		if (in_Flag)
+		{
+			if (std::strstr(in_rMsg.GetType(), "MsgHitEventCollision") != nullptr)
+			{
+				auto vector1 = CVector(100, 100, 100);
+				auto out_msgDamage = boost::make_shared<MsgDamage>();
+				out_msgDamage->collisionMask = (int*)0x01E0BE18;
+				out_msgDamage->m_HitPosition1 = &vector1;
+				out_msgDamage->m_HitPosition2 = &vector1;
+				out_msgDamage->m_LaunchVelocity = Sonic::Player::CPlayerSpeedContext::GetInstance()->m_Velocity;
+				out_msgDamage->dword50 = true;
+				SendMessage(in_rMsg.m_SenderActorID, out_msgDamage);
+				return true;
+			}
+		}
+		return Sonic::CGameObject::ProcessMessage(in_rMsg, in_Flag);
+	};
 };
 WerehogState currentState;
 
@@ -1066,7 +1053,7 @@ HOOK(void, __fastcall, CHudSonicStageUpdateParallel, 0x1098A50, Sonic::CGameObje
 	{
 		auto node = playerContext->m_pPlayer->m_spCharacterModel->GetNode("Hand_R");
 
-		collision1 = boost::make_shared<CBasicSphere>();
+		collision1 = boost::make_shared<CAttackHitbox>();
 		Sonic::CGameDocument::GetInstance()->AddGameObject(collision1);
 	}
 	if ((inputPtr->IsDown(eKeyState_RightBumper) && CONTEXT->m_ChaosEnergy == 100.0f) && !unleashMode && isGrounded)
@@ -1310,7 +1297,21 @@ void __declspec(naked) TestJump1()
 	}
 }
 
+//_DWORD *__cdecl boost::make_shared<Sonic::Message::MsgDamage>(int a1, _DWORD *collisionMask, int a3, int a4)
+HOOK(DWORD*, __cdecl, MsgDamageH, 0x00407660, DWORD* a1, DWORD* collisionMask, Hedgehog::Math::CVector* objectPosition, DWORD* flag)
+{
+	void* v1 = *(void**)a1;
+	void* v2 = *(void**)collisionMask;
+	void* v3 = *(void**)flag;
+	return originalMsgDamageH(a1, collisionMask, objectPosition, flag);
+}
+//void __stdcall sub_EA49B0(__m128 *a1, int a2, __m128 *a3, char a4)
+HOOK(void, __stdcall, sub_EA49B0, 0xEA49B0, Sonic::CGameObject* a1, Hedgehog::Math::CVector* a2, Hedgehog::Math::CVector* a3, bool a4)
+{
+	void* v3 = *(void**)a3;
 
+	originalsub_EA49B0(a1, a2, a3, a4);
+}
 void EvilSonic::Install()
 {
 	//Register some of the basic non-attack anims
@@ -1324,6 +1325,7 @@ void EvilSonic::Install()
 	CustomAnimationManager::RegisterAnimation("Evilsonic_start", "evilsonic_start");
 
 	CustomAnimationManager::RegisterAnimation("Evilsonic_runS", "evilsonic_runS");
+	CustomAnimationManager::RegisterAnimation("Evilsonic_pillar_idle", "evilsonic_pillar_idle");
 	CustomAnimationManager::RegisterAnimation("Evilsonic_run", "evilsonic_run", 3);
 	CustomAnimationManager::RegisterAnimation("Evilsonic_runE", "evilsonic_runE");
 	CustomAnimationManager::RegisterAnimation("Evilsonic_dash_jumpS", "evilsonic_dash_jumpS");
@@ -1342,6 +1344,8 @@ void EvilSonic::Install()
 	//dash run
 	//dashE = run stop
 
+	INSTALL_HOOK(MsgDamageH);
+	INSTALL_HOOK(sub_EA49B0);
 	INSTALL_HOOK(InitializeApplicationVFXParams);
 	INSTALL_HOOK(XButtonHoming_ChangeToHomingAttack);
 	INSTALL_HOOK(SetClassicMaxVelocity);
