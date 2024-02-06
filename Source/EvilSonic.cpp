@@ -82,6 +82,8 @@ public:
 	boost::shared_ptr<hh::mr::CSingleElement> m_spRenderable;
 	boost::shared_ptr<Sonic::CMatrixNodeTransform> m_spNodeEventCollision;
 	boost::shared_ptr<CRigidBody> m_spRigidBody;
+
+	Havok::SphereShape* shapeEventTrigger = new Havok::SphereShape(1);
 	virtual void AddCallback(const hh::base::THolder<Sonic::CWorld>& worldHolder,
 		Sonic::CGameDocument* pGameDocument, const boost::shared_ptr<hh::db::CDatabase>& spDatabase) override
 	{
@@ -110,7 +112,6 @@ public:
 		m_spNodeEventCollision->NotifyChanged();
 		m_spNodeEventCollision->SetParent(m_spMatrixNodeTransform.get());
 
-		Havok::SphereShape* shapeEventTrigger = new Havok::SphereShape(1);
 
 		AddEventCollision("Attack", shapeEventTrigger, *pColID_ObjectPhysics1, true, m_spNodeEventCollision);
 	}
@@ -239,6 +240,7 @@ class CStateAttackAction_byList : public Sonic::Player::CPlayerSpeedContext::CSt
 	std::string m_Posture;
 	static constexpr float ms_DecelerationForce = 0.65f;
 	static constexpr float ms_AccelerationForce = 1.4285715f; //pulled from unleashed
+	boost::shared_ptr<Sonic::CGameObject3D> collision;
 
 public:
 	static constexpr const char* ms_StateName = "Evil_AttackAction_byList";
@@ -250,6 +252,11 @@ public:
 	}
 	void EnterState() override
 	{
+		if (collision == nullptr)
+		{
+			collision = boost::make_shared<CAttackHitbox>();
+			Sonic::CGameDocument::GetInstance()->AddGameObject(collision);
+		}
 		auto context = GetContext();
 		m_LastFrame = -1;
 		m_LastActionIndex = 0;
@@ -276,6 +283,8 @@ public:
 			context->m_pPlayer->m_PostureStateMachine.ChangeState("Standard");
 			context->ChangeState("Stand");
 			shockwaveGameObject->SendMessage(shockwaveGameObject->m_ActorID, boost::make_shared<Sonic::Message::MsgKill>());
+			collision->SendMessage(collision->m_ActorID, boost::make_shared<Sonic::Message::MsgKill>());
+			collision = nullptr;
 			return;
 		}
 		if (shockwaveGameObject)
@@ -423,7 +432,7 @@ void AddTestState(Sonic::Player::CPlayerSpeedContext* context)
 		//context->m_pPlayer->m_StateMachine.RegisterStateFactory<Sonic::Player::CrouchState>();
 		context->m_pPlayer->m_StateMachine.RegisterStateFactory<CStateAttackAction_byList>();
 		//context->m_pPlayer->m_StateMachine.RegisterStateFactory<CTestState>();
-		//context->m_pPlayer->m_StateMachine.RegisterStateFactory<TestState>();
+		context->m_pPlayer->m_StateMachine.RegisterStateFactory<TestState>();
 		//context->m_pPlayer->m_StateMachine.RegisterStateFactory<state>();
 		context->m_pPlayer->m_PostureStateMachine.RegisterStateFactory<CStateAttackAction_byList_Posture>();
 		added = true;
@@ -1053,8 +1062,6 @@ HOOK(void, __fastcall, CHudSonicStageUpdateParallel, 0x1098A50, Sonic::CGameObje
 	{
 		auto node = playerContext->m_pPlayer->m_spCharacterModel->GetNode("Hand_R");
 
-		collision1 = boost::make_shared<CAttackHitbox>();
-		Sonic::CGameDocument::GetInstance()->AddGameObject(collision1);
 	}
 	if ((inputPtr->IsDown(eKeyState_RightBumper) && CONTEXT->m_ChaosEnergy == 100.0f) && !unleashMode && isGrounded)
 	{
