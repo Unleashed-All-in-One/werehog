@@ -113,7 +113,7 @@ public:
 		m_spNodeEventCollision->SetParent(m_spMatrixNodeTransform.get());
 
 
-		AddEventCollision("Attack", shapeEventTrigger, *pColID_ObjectPhysics1, true, m_spNodeEventCollision);
+		AddEventCollision("Normal", shapeEventTrigger, *pColID_ObjectPhysics1, true, m_spNodeEventCollision);
 	}
 	bool ProcessMessage(Hedgehog::Universe::Message& in_rMsg, bool in_Flag) override
 	{
@@ -452,16 +452,6 @@ void AddImpulse(CVector impulse, bool relative)
 		context->m_Velocity += impulse;
 		return;
 	}
-	//alignas(16) MsgApplyImpulse message {};
-	//message.m_position = position;
-	//message.m_impulse = impulse;
-	//message.m_impulseType = type;
-	//message.m_outOfControl = 0.0f;
-	//message.m_notRelative = !relative;
-	//message.m_snapPosition = false;
-	//message.m_pathInterpolate = false;
-	//message.m_alwaysMinusOne = -1.0f;
-	//Common::ApplyPlayerApplyImpulse(message);
 }
 void AddJumpThrust(CSonicContext* sonicContext, bool Condition)
 {
@@ -675,6 +665,7 @@ void ExecuteAttackCommand(std::string attack, int attackIndex, bool starter = fa
 			break;
 		}
 	}
+	playerContext->m_Velocity = CVector(0, 0, 0);
 	playerContext->m_pPlayer->m_StateMachine.ChangeState<CStateAttackAction_byList>();
 	AddImpulse(((playerContext->m_spMatrixNode->m_Transform.m_Rotation * Eigen::Vector3f::UnitZ()) * ((GetMotionFromName(attack).MotionMoveSpeedRatio) * 10)) * 100, true);
 	sound.reset();
@@ -801,7 +792,7 @@ HOOK(void, __fastcall, CPlayerAddCallback, 0xE799F0, Sonic::Player::CPlayer* Thi
 	{
 		const auto playerContext = Sonic::Player::CPlayerSpeedContext::GetInstance();
 		playerContext->m_ChaosEnergy = 0;
-		lifeWerehog = 5.0f;
+		lifeWerehog = 20.0f;
 		canJump = true;
 		isGrounded = true;
 		playingAttack = false;
@@ -908,12 +899,6 @@ HOOK(void, __fastcall, Jump_PlayAnimation, 0x01235250, int This)
 		}
 		jumpcount++;
 	}
-	else
-	{
-		const auto playerContext = Sonic::Player::CPlayerSpeedContext::GetInstance();
-		//Find a way to just change the sound with asm instead
-		Common::PlaySoundStatic(soundRegularJump, 2002027);
-	}
 }
 HOOK(char, __fastcall, JumpStart, 0x01114CB0, int* This)
 {
@@ -977,263 +962,255 @@ HOOK(void, __fastcall, CHudSonicStageUpdateParallel, 0x1098A50, Sonic::CGameObje
 {
 	originalCHudSonicStageUpdateParallel(This, Edx, in_rUpdateInfo);
 	deltaTime = in_rUpdateInfo.DeltaTime;
-
-	const auto playerContext = Sonic::Player::CPlayerSpeedContext::GetInstance();
-	if (abs(playerContext->m_Velocity.x() + playerContext->m_Velocity.z()) > 0)
-		tempTimerWalk += in_rUpdateInfo.DeltaTime;
-	else
-		tempTimerWalk = 0;
-	const auto spAnimInfo = boost::make_shared<Sonic::Message::MsgGetAnimationInfo>();
-	playerContext->m_pPlayer->SendMessageImm(playerContext->m_pPlayer->m_ActorID, spAnimInfo);
-	Hedgehog::Base::CSharedString stateCheck = playerContext->m_pPlayer->m_StateMachine.GetCurrentState()->GetStateName();
-	std::string stateCheckS(stateCheck.c_str());
-	DebugDrawText::log((std::string("Current Player Anim: ") + std::string(spAnimInfo->m_Name.c_str())).c_str(), 0);
-	DebugDrawText::log((std::string("tempTimerWalk: ") + std::to_string(tempTimerWalk)).c_str(), 0);
-
-	DebugDrawText::log((std::string("Current Player State: ") + stateCheckS).c_str(), 0);
-	DebugDrawText::log((std::string("Current Player Posture: ") + std::string(playerContext->m_pPlayer->m_PostureStateMachine.GetCurrentState()->m_Name.c_str())).c_str(), 0);
-	if (!BlueBlurCommon::IsClassic())
+	if (BlueBlurCommon::IsClassic())
 	{
-		return;
-	}
-
-	if (timerDamage <= timerDamageMax)
-		timerDamage += in_rUpdateInfo.DeltaTime;
-	// Force disable extended boost.
-	*(uint32_t*)((uint32_t)*CONTEXT->ms_pInstance + 0x680) = 1;
-	CONTEXT->m_ChaosEnergy = min(CONTEXT->m_ChaosEnergy, 100);
-
-
-	//playerContext->m_JumpThrust = CVector(playerContext->m_JumpThrust.x(), 1, playerContext->m_JumpThrust.z());
-	playerContext->m_spParameter->m_scpNode->m_ValueMap[Sonic::Player::ePlayerSpeedParameter_BoostEnableChaosEnergy] = 1000.0f;
-	float rotForce = 70.0f;
-	if (currentState == WerehogState::Dash)
-		rotForce = 30.0f;
-	else if (currentState == WerehogState::Guard)
-		rotForce = 0;
-	playerContext->m_spParameter->m_scpNode->m_ValueMap[Sonic::Player::ePlayerSpeedParameter_RotationForce0] = rotForce;
-	playerContext->m_spParameter->m_scpNode->m_ValueMap[Sonic::Player::ePlayerSpeedParameter_RotationForce1] = rotForce;
-	playerContext->m_spParameter->m_scpNode->m_ValueMap[Sonic::Player::ePlayerSpeedParameter_RotationForce2] = rotForce;
-	playerContext->m_spParameter->m_scpNode->m_ValueMap[Sonic::Player::ePlayerSpeedParameter_AirBoostEnableChaosEnergy] = 1000.0f;
-	playerContext->m_spParameter->m_scpNode->m_ValueMap[Sonic::Player::ePlayerSpeedParameter_EnableHurdleJumpMinVelocity] = 1000.0f;
-
-	SONIC_CLASSIC_CONTEXT->m_spParameter->m_scpNode->m_ValueMap[Sonic::Player::ePlayerSpeedParameter_MaxHorzVelocity] = GetVelocity();
-
-
-
-	isGrounded = playerContext->m_Grounded;
-	/*sonic->m_spParameter->m_scpNode->m_ValueMap.erase(Sonic::Player::ePlayerSpeedParameter_BoostEnableChaosEnergy);
-	sonic->m_spParameter->m_scpNode->m_ValueMap.erase(Sonic::Player::ePlayerSpeedParameter_AirBoostEnableChaosEnergy);*/
-	DebugDrawText::log((std::string("Timer Combo:") + std::to_string(timerCombo)).c_str(), 0);
-	DebugDrawText::log((std::string("Timer Combo Max:") + std::to_string(timerComboMax)).c_str(), 0);
-	DebugDrawText::log((std::string("Timer Attack:") + std::to_string(timerAttack)).c_str(), 0);
-	DebugDrawText::log((std::string("Timer Attack Max:") + std::to_string(timerAttackMax)).c_str(), 0);
-	DebugDrawText::log((std::string("Combo progress:") + std::to_string(comboProgress)).c_str(), 0);
-	DebugDrawText::log((std::string("Boost") + std::to_string(CONTEXT->m_ChaosEnergy)).c_str(), 0);
-	DebugDrawText::log((std::string("Tap") + std::to_string(lastTap)).c_str(), 0);
-	DebugDrawText::log("\n", 0);
-	DebugDrawText::log((std::string("Life") + std::to_string(lifeWerehog)).c_str(), 0);
-	DebugDrawText::log((std::string("PlayingAttack") + std::to_string(playingAttack)).c_str(), 0);
-	DebugDrawText::log((std::string("AttackAnim: ") + std::string(lastAttackName)).c_str(), 0);
-	DebugDrawText::log((std::string("Latest Music Cue: ") + std::string(lastMusicCue)).c_str(), 0);
-	auto inputPtr = &Sonic::CInputState::GetInstance()->m_PadStates[Sonic::CInputState::GetInstance()->m_CurrentPadStateIndex];
-	if (inputPtr->IsDown(eKeyState_X) || inputPtr->IsDown(eKeyState_Y) || inputPtr->IsDown(eKeyState_A))
-	{
-		timerCombo = 0;
-	}
-	RegisterInputs();
-	Particle_Checker();
-	if (isGrounded && jumpcount > 0)
-	{
-		canJump = true;
-		jumpcount = 0;
-	}
-	if (unleashMode && CONTEXT->m_ChaosEnergy > 0)
-	{
-		playerContext->m_ChaosEnergy -= in_rUpdateInfo.DeltaTime * 5;
-	}
-	else
-	{
-		unleashMode = false;
-		KillBerserkEffect();
-		soundUnleash.reset();
-	}
-	if (inputPtr->IsDown(eKeyState_DpadDown))
-	{
-		auto node = playerContext->m_pPlayer->m_spCharacterModel->GetNode("Hand_R");
-
-	}
-	if ((inputPtr->IsDown(eKeyState_RightBumper) && CONTEXT->m_ChaosEnergy == 100.0f) && !unleashMode && isGrounded)
-	{
-		playerContext->m_Velocity = CVector(0, 0, 0);
-		PlayAnim("Evilsonic_BerserkerS");
-		CreateBerserkEffect();
-		Common::PlaySoundStatic(soundUnleashStart, 126);
-		Common::PlaySoundStatic(soundUnleash, 127);
-		unleashMode = true;
-	}
-	if (inputPtr->IsDown(eKeyState_LeftBumper) && currentState != WerehogState::Guard)
-	{
-		currentState = WerehogState::Guard;
-		//ef_ch_sng_yh1_boost2
-		auto node0 = playerContext->m_pPlayer->m_spCharacterModel->GetNode("Hips");
-		if (!shield)
-			Common::fCGlitterCreate(playerContext->m_pPlayer->m_spContext.get(), shield, &node0, "evil_guard_sphere01", 1);
-
-		PlayAnim("Evilsonic_guard_idle");
-	}
-	else
-	{
-		currentState = WerehogState::Normal;
-		shield.reset();
-	}
-	CheckForThinPlatform();
-
-	if (inputPtr->IsDown(Sonic::eKeyState_RightTrigger))
-	{
-		currentState = WerehogState::Dash;
-	}
-	else
-	{
-		currentState = WerehogState::Normal;
-	}
-	if (!playingAttack && isGrounded)
-	{
-
-		DebugDrawText::log(std::format("SPEED_MAGNITUDE: {0}", abs(playerContext->m_Velocity.norm())).c_str(), 0);
+		const auto playerContext = Sonic::Player::CPlayerSpeedContext::GetInstance();
+		if (abs(playerContext->m_Velocity.x() + playerContext->m_Velocity.z()) > 0)
+			tempTimerWalk += in_rUpdateInfo.DeltaTime;
+		else
+			tempTimerWalk = 0;
 		const auto spAnimInfo = boost::make_shared<Sonic::Message::MsgGetAnimationInfo>();
 		playerContext->m_pPlayer->SendMessageImm(playerContext->m_pPlayer->m_ActorID, spAnimInfo);
+		Hedgehog::Base::CSharedString stateCheck = playerContext->m_pPlayer->m_StateMachine.GetCurrentState()->GetStateName();
+		std::string stateCheckS(stateCheck.c_str());
+		DebugDrawText::log((std::string("Current Player Anim: ") + std::string(spAnimInfo->m_Name.c_str())).c_str(), 0);
+		DebugDrawText::log((std::string("tempTimerWalk: ") + std::to_string(tempTimerWalk)).c_str(), 0);
+
+		DebugDrawText::log((std::string("Current Player State: ") + stateCheckS).c_str(), 0);
+		DebugDrawText::log((std::string("Current Player Posture: ") + std::string(playerContext->m_pPlayer->m_PostureStateMachine.GetCurrentState()->m_Name.c_str())).c_str(), 0);
+		if (!BlueBlurCommon::IsClassic())
+		{
+			return;
+		}
+
+		if (timerDamage <= timerDamageMax)
+			timerDamage += in_rUpdateInfo.DeltaTime;
+		// Force disable extended boost.
+		*(uint32_t*)((uint32_t)*CONTEXT->ms_pInstance + 0x680) = 1;
+		CONTEXT->m_ChaosEnergy = min(CONTEXT->m_ChaosEnergy, 100);
+
+
+		//playerContext->m_JumpThrust = CVector(playerContext->m_JumpThrust.x(), 1, playerContext->m_JumpThrust.z());
+		playerContext->m_spParameter->m_scpNode->m_ValueMap[Sonic::Player::ePlayerSpeedParameter_BoostEnableChaosEnergy] = 1000.0f;
+		float rotForce = 70.0f;
 		if (currentState == WerehogState::Dash)
+			rotForce = 30.0f;
+		else if (currentState == WerehogState::Guard)
+			rotForce = 0;
+		playerContext->m_spParameter->m_scpNode->m_ValueMap[Sonic::Player::ePlayerSpeedParameter_RotationForce0] = rotForce;
+		playerContext->m_spParameter->m_scpNode->m_ValueMap[Sonic::Player::ePlayerSpeedParameter_RotationForce1] = rotForce;
+		playerContext->m_spParameter->m_scpNode->m_ValueMap[Sonic::Player::ePlayerSpeedParameter_RotationForce2] = rotForce;
+		playerContext->m_pStateFlag->m_Flags[Sonic::Player::CPlayerSpeedContext::eStateFlag_EnableAirOnceAction] =false;
+		playerContext->m_spParameter->m_scpNode->m_ValueMap[Sonic::Player::ePlayerSpeedParameter_AirBoostEnableChaosEnergy] = 1000.0f;
+		playerContext->m_spParameter->m_scpNode->m_ValueMap[Sonic::Player::ePlayerSpeedParameter_EnableHurdleJumpMinVelocity] = 1000.0f;
+
+		SONIC_CLASSIC_CONTEXT->m_spParameter->m_scpNode->m_ValueMap[Sonic::Player::ePlayerSpeedParameter_MaxHorzVelocity] = GetVelocity();
+
+
+
+		isGrounded = playerContext->m_Grounded;
+		/*sonic->m_spParameter->m_scpNode->m_ValueMap.erase(Sonic::Player::ePlayerSpeedParameter_BoostEnableChaosEnergy);
+		sonic->m_spParameter->m_scpNode->m_ValueMap.erase(Sonic::Player::ePlayerSpeedParameter_AirBoostEnableChaosEnergy);*/
+		DebugDrawText::log((std::string("Timer Combo:") + std::to_string(timerCombo)).c_str(), 0);
+		DebugDrawText::log((std::string("Timer Combo Max:") + std::to_string(timerComboMax)).c_str(), 0);
+		DebugDrawText::log((std::string("Timer Attack:") + std::to_string(timerAttack)).c_str(), 0);
+		DebugDrawText::log((std::string("Timer Attack Max:") + std::to_string(timerAttackMax)).c_str(), 0);
+		DebugDrawText::log((std::string("Combo progress:") + std::to_string(comboProgress)).c_str(), 0);
+		DebugDrawText::log((std::string("Boost") + std::to_string(CONTEXT->m_ChaosEnergy)).c_str(), 0);
+		DebugDrawText::log((std::string("Tap") + std::to_string(lastTap)).c_str(), 0);
+		DebugDrawText::log("\n", 0);
+		DebugDrawText::log((std::string("Life") + std::to_string(lifeWerehog)).c_str(), 0);
+		DebugDrawText::log((std::string("PlayingAttack") + std::to_string(playingAttack)).c_str(), 0);
+		DebugDrawText::log((std::string("AttackAnim: ") + std::string(lastAttackName)).c_str(), 0);
+		DebugDrawText::log((std::string("Latest Music Cue: ") + std::string(lastMusicCue)).c_str(), 0);
+		auto inputPtr = &Sonic::CInputState::GetInstance()->m_PadStates[Sonic::CInputState::GetInstance()->m_CurrentPadStateIndex];
+		if (inputPtr->IsDown(eKeyState_X) || inputPtr->IsDown(eKeyState_Y) || inputPtr->IsDown(eKeyState_A))
 		{
-			if (abs(playerContext->m_Velocity.norm() > 12))
+			timerCombo = 0;
+		}
+		RegisterInputs();
+		Particle_Checker();
+		if (isGrounded && jumpcount > 0)
+		{
+			canJump = true;
+			jumpcount = 0;
+		}
+		if (unleashMode && CONTEXT->m_ChaosEnergy > 0)
+		{
+			playerContext->m_ChaosEnergy -= in_rUpdateInfo.DeltaTime * 5;
+		}
+		else
+		{
+			unleashMode = false;
+			KillBerserkEffect();
+			soundUnleash.reset();
+		}
+		if (inputPtr->IsDown(eKeyState_DpadDown))
+		{
+			auto node = playerContext->m_pPlayer->m_spCharacterModel->GetNode("Hand_R");
+
+		}
+		if ((inputPtr->IsDown(eKeyState_RightBumper) && CONTEXT->m_ChaosEnergy == 100.0f) && !unleashMode && isGrounded)
+		{
+			playerContext->m_Velocity = CVector(0, 0, 0);
+			PlayAnim("Evilsonic_BerserkerS");
+			CreateBerserkEffect();
+			Common::PlaySoundStatic(soundUnleashStart, 126);
+			Common::PlaySoundStatic(soundUnleash, 127);
+			unleashMode = true;
+		}
+		if (inputPtr->IsDown(eKeyState_LeftBumper) && currentState != WerehogState::Guard)
+		{
+			currentState = WerehogState::Guard;
+			//ef_ch_sng_yh1_boost2
+			auto node0 = playerContext->m_pPlayer->m_spCharacterModel->GetNode("Hips");
+			if (!shield)
+				Common::fCGlitterCreate(playerContext->m_pPlayer->m_spContext.get(), shield, &node0, "evil_guard_sphere01", 1);
+
+			PlayAnim("Evilsonic_guard_idle");
+		}
+		else
+		{
+			currentState = WerehogState::Normal;
+			shield.reset();
+		}
+		CheckForThinPlatform();
+
+		if (inputPtr->IsDown(Sonic::eKeyState_RightTrigger))
+		{
+			currentState = WerehogState::Dash;
+		}
+		else
+		{
+			currentState = WerehogState::Normal;
+		}
+		if (!playingAttack && isGrounded)
+		{
+
+			DebugDrawText::log(std::format("SPEED_MAGNITUDE: {0}", abs(playerContext->m_Velocity.norm())).c_str(), 0);
+			const auto spAnimInfo = boost::make_shared<Sonic::Message::MsgGetAnimationInfo>();
+			playerContext->m_pPlayer->SendMessageImm(playerContext->m_pPlayer->m_ActorID, spAnimInfo);
+			if (currentState == WerehogState::Dash)
 			{
-				if ((!IsCurrentAnimationName("Evilsonic_dash"))
-					|| (IsCurrentAnimationName("Evilsonic_dash") && spAnimInfo->m_Frame >= 10))
+				if (abs(playerContext->m_Velocity.norm() > 12))
 				{
-					PlayAnim("Evilsonic_dash");
+					if ((!IsCurrentAnimationName("Evilsonic_dash"))
+						|| (IsCurrentAnimationName("Evilsonic_dash") && spAnimInfo->m_Frame >= 10))
+					{
+						PlayAnim("Evilsonic_dash");
+					}
 				}
 			}
-		}
-		if (currentState == WerehogState::Normal)
-		{
-			/*	if(std::strstr(spAnimInfo->m_Name.c_str(), "Evilsonic_dash") != nullptr)
-					PlayAnim("Evilsonic_dashE");*/
-			if (abs(playerContext->m_Velocity.norm() > 5))
+			if (currentState == WerehogState::Normal)
 			{
-				if ((!IsCurrentAnimationName("Evilsonic_run"))
-					|| (IsCurrentAnimationName("Evilsonic_run") && spAnimInfo->m_Frame >= 51))
-					PlayAnim("Evilsonic_run");
+				/*	if(std::strstr(spAnimInfo->m_Name.c_str(), "Evilsonic_dash") != nullptr)
+						PlayAnim("Evilsonic_dashE");*/
+				if (abs(playerContext->m_Velocity.norm() > 5))
+				{
+					if ((!IsCurrentAnimationName("Evilsonic_run"))
+						|| (IsCurrentAnimationName("Evilsonic_run") && spAnimInfo->m_Frame >= 51))
+						PlayAnim("Evilsonic_run");
+				}
+
+			}
+		}
+
+		if (timerCombo > timerComboMax)
+		{
+			comboProgress = 0;
+			Common::SonicContextSetCollision(SonicCollision::TypeSonicSquatKick, false);
+		}
+		else
+		{
+			if (timerAttack > timerAttackMax && playingAttack)
+			{
+				playingAttack = false;
+				comboProgress++;
 			}
 
-		}
-	}
-
-	if (timerCombo > timerComboMax)
-	{
-		comboProgress = 0;
-		Common::SonicContextSetCollision(SonicCollision::TypeSonicSquatKick, false);
-	}
-	else
-	{
-		if (timerAttack > timerAttackMax && playingAttack)
-		{
-			playingAttack = false;
-			comboProgress++;
-		}
-
-		if ((timerCombo > 0.1f && comboProgress > 0 || comboProgress == 0) && (timerAttack > timerAttackMax) && currentButtonChain.size() > comboProgress)
-		{
-			if (currentButtonChain[currentButtonChain.size() - 1] == eKeyState_X || currentButtonChain[currentButtonChain.size() - 1] == eKeyState_Y || currentButtonChain[currentButtonChain.size() - 1] == eKeyState_A)
+			if ((timerCombo > 0.1f && comboProgress > 0 || comboProgress == 0) && (timerAttack > timerAttackMax) && currentButtonChain.size() > comboProgress)
 			{
-
-				if (comboProgress == 0)
+				if (currentButtonChain[currentButtonChain.size() - 1] == eKeyState_X || currentButtonChain[currentButtonChain.size() - 1] == eKeyState_Y || currentButtonChain[currentButtonChain.size() - 1] == eKeyState_A)
 				{
-					std::string attackName = "Start_";
-					if (currentState == WerehogState::Dash)
+
+					if (comboProgress == 0)
 					{
-						if (isGrounded)
-							attackName += "Dash_Run_";
+						std::string attackName = "Start_";
+						if (currentState == WerehogState::Dash)
+						{
+							if (isGrounded)
+								attackName += "Dash_Run_";
+							else
+								attackName += "Dash_";
+
+						}
+						if (currentState == WerehogState::Guard)
+							attackName += "Guard_";
+						if (!isGrounded)
+							attackName += "Air_";
+						if (!isGrounded || currentState == WerehogState::Dash)
+						{
+							switch (currentButtonChain[comboProgress])
+							{
+							case eKeyState_X:
+							{
+								attackName += "XButtonDown";
+								break;
+							}
+							case eKeyState_Y:
+							{
+								attackName += "YButtonDown";
+								break;
+							}
+							}
+						}
 						else
-							attackName += "Dash_";
-
+						{
+							switch (currentButtonChain[comboProgress])
+							{
+							case eKeyState_X:
+							{
+								attackName += "XButtonUP";
+								break;
+							}
+							case eKeyState_Y:
+							{
+								attackName += "YButtonUP";
+								break;
+							}
+							}
+						}
+						SearchThenExecute(attackName, true, eKeyState_None);
 					}
-					if (currentState == WerehogState::Guard)
-						attackName += "Guard_";
-					if (!isGrounded)
-						attackName += "Air_";
-					if (!isGrounded || currentState == WerehogState::Dash)
+
+					if (comboProgress >= 1)
 					{
-						switch (currentButtonChain[comboProgress])
-						{
-						case eKeyState_X:
-						{
-							attackName += "XButtonDown";
-							break;
-						}
-						case eKeyState_Y:
-						{
-							attackName += "YButtonDown";
-							break;
-						}
-						}
+						SearchThenExecute(lastAttackName, false, currentButtonChain[comboProgress]);
 					}
-					else
-					{
-						switch (currentButtonChain[comboProgress])
-						{
-						case eKeyState_X:
-						{
-							attackName += "XButtonUP";
-							break;
-						}
-						case eKeyState_Y:
-						{
-							attackName += "YButtonUP";
-							break;
-						}
-						}
-					}
-					SearchThenExecute(attackName, true, eKeyState_None);
-				}
 
-				if (comboProgress >= 1)
-				{
-					SearchThenExecute(lastAttackName, false, currentButtonChain[comboProgress]);
 				}
-
 			}
 		}
-	}
-	DebugDrawText::log((std::string("Jump count: ") + std::to_string(jumpcount)).c_str(), 0);
-	if (inputPtr->IsTapped(Sonic::eKeyState_A) && !playingAttack)
-	{
-		isGrounded = false;
-		if (jumpcount == 1 && canJump)
+		DebugDrawText::log((std::string("Jump count: ") + std::to_string(jumpcount)).c_str(), 0);
+		if (inputPtr->IsTapped(Sonic::eKeyState_A) && !playingAttack)
 		{
-			canJump = false;
-			Sonic::Player::CPlayerSpeedContext::GetInstance()->m_Velocity.y() = 0;
-			AddJumpThrust(Sonic::Player::CPlayerSpeedContext::GetInstance(), true);
-			Common::PlaySoundStatic(sound, 42);
+			isGrounded = false;
+			if (jumpcount == 1 && canJump)
+			{
+				canJump = false;
+				Sonic::Player::CPlayerSpeedContext::GetInstance()->m_Velocity.y() = 0;
+				AddJumpThrust(Sonic::Player::CPlayerSpeedContext::GetInstance(), true);
+				Common::PlaySoundStatic(sound, 42);
 
-			PlayAnim("JumpEvil2");
-			jumpcount++;
+				PlayAnim("JumpEvil2");
+				jumpcount++;
+			}
+
 		}
 
+		timerCombo += in_rUpdateInfo.DeltaTime;
+		timerAttack += in_rUpdateInfo.DeltaTime;
 	}
-
-	timerCombo += in_rUpdateInfo.DeltaTime;
-	timerAttack += in_rUpdateInfo.DeltaTime;
-
-}
-HOOK(void, __fastcall, _CPlayerSpeedUpdateParallel, 0xE6BF20, Sonic::Player::CPlayerSpeed* This, void* _, const hh::fnd::SUpdateInfo& updateInfo)
-{
-	original_CPlayerSpeedUpdateParallel(This, _, updateInfo);
-
-	//// Test our state when we press Y
-	//if (playingAttack)
-	//{
-	//	This->m_StateMachine.ChangeState<CTestState>();
-	//}
 }
 
 // Call the function when we initialize everything.
@@ -1241,8 +1218,10 @@ HOOK(void*, __fastcall, _InitializePlayer, 0x00D96110, void* This)
 {
 	void* result = original_InitializePlayer(This);
 	auto context = Sonic::Player::CPlayerSpeedContext::GetInstance();    // Hack: there's a better way to do this but whatever. This writes to the singleton anyway.
-
-	AddTestState(context);
+	if (BlueBlurCommon::IsClassic())
+	{
+		AddTestState(context);
+	}
 	return result;
 }
 extern "C" __declspec(dllexport) float API_GetLife()
@@ -1273,7 +1252,11 @@ HOOK(void, __cdecl, InitializeApplicationVFXParams, 0x00D65180, Sonic::CParamete
 //Hedgehog::Base::CSharedString* __thiscall Sonic::Player::CSonicStateWalk::Update(int* this)
 HOOK(Hedgehog::Base::CSharedString*, __fastcall, WalkUpdate, 0x00DED4E0, int* This)
 {
-	return 0;
+
+	if (BlueBlurCommon::IsClassic())
+		return 0;
+	else
+		return originalWalkUpdate(This);
 }
 void __declspec(naked) TestJump()
 {
@@ -1304,20 +1287,41 @@ void __declspec(naked) TestJump1()
 	}
 }
 
-//_DWORD *__cdecl boost::make_shared<Sonic::Message::MsgDamage>(int a1, _DWORD *collisionMask, int a3, int a4)
-HOOK(DWORD*, __cdecl, MsgDamageH, 0x00407660, DWORD* a1, DWORD* collisionMask, Hedgehog::Math::CVector* objectPosition, DWORD* flag)
-{
-	void* v1 = *(void**)a1;
-	void* v2 = *(void**)collisionMask;
-	void* v3 = *(void**)flag;
-	return originalMsgDamageH(a1, collisionMask, objectPosition, flag);
-}
-//void __stdcall sub_EA49B0(__m128 *a1, int a2, __m128 *a3, char a4)
-HOOK(void, __stdcall, sub_EA49B0, 0xEA49B0, Sonic::CGameObject* a1, Hedgehog::Math::CVector* a2, Hedgehog::Math::CVector* a3, bool a4)
-{
-	void* v3 = *(void**)a3;
 
-	originalsub_EA49B0(a1, a2, a3, a4);
+void sub_E68360(CSonicContext* a1)
+{
+	uint32_t func = 0xE68360;
+	__asm
+	{
+		mov edi, a1
+		push edi
+		call    func
+	};
+};
+
+//void __thiscall Sonic::Player::CSonicClassicStateNormalDamageDead::Calculate(int a1)
+HOOK(void, __fastcall, NormalDamageDeadUpdate, 0x012523C0, int* a1, void* Edx)
+{
+
+}
+struct MsgRestartStage : public Hedgehog::Universe::MessageTypeSet
+{
+public:
+	HH_FND_MSG_MAKE_TYPE(0x01681FA0);
+};
+HOOK(void, __fastcall, NormalDamageDeadBegin, 0x01252170, int* a1, void* Edx)
+{
+
+	Sonic::Player::CPlayerSpeedContext::GetInstance()->m_pPlayer->SendMessage(Sonic::Player::CPlayerSpeedContext::GetInstance()->m_pPlayer->m_ActorID, boost::make_shared<Sonic::Message::MsgDead>(true));
+	Sonic::Player::CPlayerSpeedContext::GetInstance()->m_pPlayer->SendMessage(Sonic::Player::CPlayerSpeedContext::GetInstance()->m_pPlayer->m_ActorID, boost::make_shared<MsgResetCamera>());
+}
+HOOK(void, __fastcall, NormalDamageDeadAfter, 0x12520D0, int* a1, void* Edx)
+{
+}
+//void __thiscall sub_11146C0(void *this)
+HOOK(void, __fastcall, ClassicMoveStopUpdate, 0x11146c0, void* This, void* Edx)
+{
+	Sonic::Player::CPlayerSpeedContext::GetInstance()->m_pPlayer->m_StateMachine.ChangeState("Walk");
 }
 void EvilSonic::Install()
 {
@@ -1351,8 +1355,9 @@ void EvilSonic::Install()
 	//dash run
 	//dashE = run stop
 
-	INSTALL_HOOK(MsgDamageH);
-	INSTALL_HOOK(sub_EA49B0);
+	//INSTALL_HOOK(NormalDamageDeadAfter);
+	INSTALL_HOOK(NormalDamageDeadBegin);
+	//INSTALL_HOOK(NormalDamageDeadUpdate);
 	INSTALL_HOOK(InitializeApplicationVFXParams);
 	INSTALL_HOOK(XButtonHoming_ChangeToHomingAttack);
 	INSTALL_HOOK(SetClassicMaxVelocity);
@@ -1364,29 +1369,30 @@ void EvilSonic::Install()
 	INSTALL_HOOK(ProcMsgRestartStage);
 	INSTALL_HOOK(CClassicSonicProcMsgDamage);
 	INSTALL_HOOK(CHudSonicStageUpdateParallel);
+	INSTALL_HOOK(ClassicMoveStopUpdate);
 
 	INSTALL_HOOK(WalkUpdate);
 	INSTALL_HOOK(HomingBegin);
 	INSTALL_HOOK(StandCalc);
-	INSTALL_HOOK(_CPlayerSpeedUpdateParallel);
 	INSTALL_HOOK(_InitializePlayer);
 	//WRITE_JUMP(0x00DC6713, TestJump);
 	//WRITE_JUMP(0x00DEF41F, TestJump1);
-
+	
+	//Jump over check for start anims
 	WRITE_JUMP(0X00D900C7, 0X00D9019A);
 	//Unmap stomp/spin for classic
 	WRITE_JUMP(0X00DC5F7E, 0X00DC6054);
 	WRITE_JUMP(0X012523C0, 0x012530E0);
 
 	//Disable MoveStop
-	WRITE_JUMP(0x0111C020, 0x0111C066);
+	//WRITE_JUMP(0x0111C020, 0x0111C066);
 
 	//Force Jump stuff
 	WRITE_JUMP(0x01114A14, 0x01114A39);
 	WRITE_JUMP(0x01114D95, 0x01114DDA);
 
-	//Force the jump sound to be silent
-	WRITE_MEMORY(0x00E57E4E, uint32_t, -1);
+	//Force the jump sound to be silent - disable if we redo classic
+	//WRITE_MEMORY(0x00E57E4E, uint32_t, -1);
 
 	//Disable Spindash
 	WRITE_JUMP(0x00DC28D9, 0x00DC2946);

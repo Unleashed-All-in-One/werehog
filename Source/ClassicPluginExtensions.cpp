@@ -84,6 +84,7 @@ public:
 	void EnterState() override
 	{
 		GetContext()->ChangeAnimation("Evilsonic_start");
+		GetContext()->m_pStateFlag->m_Flags[Sonic::Player::CPlayerSpeedContext::eStateFlag_OutOfControl] = true;
 	}
 	void UpdateState() override
 	{
@@ -107,6 +108,7 @@ public:
 			Sonic::Player::CPlayerSpeedContext::GetInstance()->m_pPlayer->SendMessage(Sonic::CGameDocument::GetInstance()->GetWorld()->GetCamera()->m_ActorID, boost::make_shared<MsgResetCamera>());
 			Sonic::Player::CPlayerSpeedContext::GetInstance()->m_pStateFlag->m_Flags[Sonic::Player::CPlayerSpeedContext::eStateFlag_OutOfControl] = false;
 			isExiting = true;
+			GetContext()->m_pStateFlag->m_Flags[Sonic::Player::CPlayerSpeedContext::eStateFlag_OutOfControl] = false;
 			return;
 		}
 		else
@@ -125,15 +127,27 @@ public:
 
 HOOK(char, __fastcall, DEF010, 0xDEF010, Sonic::Player::CSonicStateStartCrouching* This)
 {
+	if (!BlueBlurCommon::IsClassic())
+	{
+		return originalDEF010(This);;
+	}
 	auto returned = originalDEF010(This);
 	this_is_a_bad_hack_please_fix = This;
 	return returned;
 }
 HOOK(void, __fastcall, CSonicStartCrouching_StateUpdate, 0x00DEF180, Sonic::Player::CPlayerSpeedContext::CStateSpeedBase* This)
 {
+	if (!BlueBlurCommon::IsClassic())
+	{
+		return originalCSonicStartCrouching_StateUpdate(This);
+	}
 }
 HOOK(char, __fastcall, StateCrouch_End, 0xDEF0A0, Sonic::Player::CSonicStateStartCrouching* This)
 {
+	if (!BlueBlurCommon::IsClassic())
+	{
+		return originalStateCrouch_End(This);
+	}
 	this_is_a_bad_hack_please_fix = This;
 	if (Extensions_cameraAnimTempExecuted)
 	{
@@ -147,6 +161,10 @@ HOOK(char, __fastcall, StateCrouch_End, 0xDEF0A0, Sonic::Player::CSonicStateStar
 
 HOOK(char, __stdcall, Camtest, 0xDFCE30, Sonic::Player::CPlayerSpeedContext::CStateSpeedBase* a2)
 {
+	if (!BlueBlurCommon::IsClassic())
+	{
+		return originalCamtest(a2);
+	}
 	//modern calls 00DFC410
 	//classic calls unset homing attack
 	//2 = readygo crouch
@@ -163,6 +181,16 @@ void __declspec(naked) TestJumpNew()
 		call[sub_E71A50]
 		push    esi
 		call[sub_DFCE30]
+		jmp[RedRingCollectedCheckReturnAddress]
+	}
+}
+void __declspec(naked) TestJumpNew51()
+{
+	static uint32_t RedRingCollectedCheckReturnAddress = 0x00EA3F95;
+	static uint32_t sub_E71A50 = 0xE71A50;
+	static uint32_t sub_DFCE30 = 0xDFCE30;
+	__asm
+	{
 		jmp[RedRingCollectedCheckReturnAddress]
 	}
 }
@@ -183,15 +211,19 @@ HOOK(void*, __fastcall, Extensions_InitializePlayer, 0x00D96110, void* This)
 {
 	void* result = originalExtensions_InitializePlayer(This);
 	auto context = Sonic::Player::CPlayerSpeedContext::GetInstance();    // Hack: there's a better way to do this but whatever. This writes to the singleton anyway.
-
-	Extensions_AddTestState(context);
+	
+		Extensions_AddTestState(context);
+	
 	return result;
 }
+
 void ClassicPluginExtensions::Install()
 {
+
 	WRITE_MEMORY(0x015DBAA0, char, "evilsonic_dashS");
 	INSTALL_HOOK(Camtest);
 	WRITE_JUMP(0x00DC69B1, TestJumpNew);
+	WRITE_JUMP(0x00EA3F85, TestJumpNew51);
 	//disable all of this below to disable classic cam anims
 	INSTALL_HOOK(Extensions_InitializePlayer);
 	INSTALL_HOOK(DEF010);

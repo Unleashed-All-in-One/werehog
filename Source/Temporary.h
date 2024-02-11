@@ -17,6 +17,11 @@ static const int* pColID_ObjectPhysics3 = reinterpret_cast<int*>(0x1E5E7B4);
 static const int* pColID_ObjectPhysics4 = reinterpret_cast<int*>(0x1E5E804);
 static const int* pColID_ObjectPhysics5 = reinterpret_cast<int*>(0x1E5E754);
 static const int* pColID_ObjectPhysics6 = reinterpret_cast<int*>(0x01E61D24);
+static const int* pColID_ObjectPhysics7 = reinterpret_cast<int*>(0x01E61B64);
+static const int* pColID_ObjectPhysics8 = reinterpret_cast<int*>(0x01E61B80);
+static const int* pColID_ObjectPhysics9 = reinterpret_cast<int*>(0x01E61B9C);
+static const int* pColID_ObjectPhysics10 = reinterpret_cast<int*>(0x1E5E74C);
+static const int* pColID_ObjectPhysics11 = reinterpret_cast<int*>(0x01E61B78);
 // TODO: Move to somewhere else, these are StringMap/StringEnum's
 struct MsgChangePlayer : public hh::fnd::MessageTypeSet
 {
