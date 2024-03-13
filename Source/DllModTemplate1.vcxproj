@@ -99,7 +99,7 @@
       <ConformanceMode>true</ConformanceMode>
       <PrecompiledHeader>Use</PrecompiledHeader>
       <PrecompiledHeaderFile>Pch.h</PrecompiledHeaderFile>
-      <AdditionalIncludeDirectories>$(SolutionDir)..\Dependencies\BlueBlur;$(SolutionDir)..\Dependencies\;$(SolutionDir)..\Dependencies\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)..\Dependencies\BlueBlurCustom;$(SolutionDir)..\Dependencies\BlueBlur;$(SolutionDir)..\Dependencies\;$(SolutionDir)..\Dependencies\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <ForcedIncludeFiles>Pch.h</ForcedIncludeFiles>
       <LanguageStandard>stdcpp20</LanguageStandard>
     </ClCompile>
@@ -143,7 +143,7 @@
       <PrecompiledHeaderFile>Pch.h</PrecompiledHeaderFile>
       <FavorSizeOrSpeed>Speed</FavorSizeOrSpeed>
       <RuntimeTypeInfo>false</RuntimeTypeInfo>
-      <AdditionalIncludeDirectories>$(SolutionDir)..\Dependencies\BlueBlur;$(SolutionDir)..\Dependencies\;$(SolutionDir)..\Dependencies\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)..\Dependencies\BlueBlurCustom;$(SolutionDir)..\Dependencies\BlueBlur;$(SolutionDir)..\Dependencies\;$(SolutionDir)..\Dependencies\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <ForcedIncludeFiles>Pch.h</ForcedIncludeFiles>
       <LanguageStandard>stdcpp20</LanguageStandard>
     </ClCompile>
@@ -201,6 +201,7 @@
     <ClCompile Include="EvilSonic.cpp" />
     <ClCompile Include="Temporary.cpp" />
     <ClCompile Include="Testing.cpp" />
+    <ClCompile Include="WerehogStates.cpp" />
     <ClCompile Include="XMLParser.cpp" />
   </ItemGroup>
   <ItemGroup>
@@ -214,6 +215,7 @@
     <ClInclude Include="EvilSonic.h" />
     <ClInclude Include="Temporary.h" />
     <ClInclude Include="Testing.h" />
+    <ClInclude Include="WerehogStates.h" />
     <ClInclude Include="XMLParser.h" />
   </ItemGroup>
   <ItemGroup>

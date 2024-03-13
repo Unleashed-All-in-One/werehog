@@ -1,6 +1,7 @@
 ﻿#define WIN32_LEAN_AND_MEAN
 
 #include <BlueBlur.h>
+#include <BlueBlurCustom.h>
 
 // Detours
 #include <Windows.h>
@@ -44,6 +45,7 @@
 #include "XMLParser.h"
 #include "DebugDrawText.h"	
 #include "Temporary.h"	
+#include "WerehogStates.h"
 #include "Testing.h"	
 #include "EnemyBase.h"	
 #include "CustomAnimationManager.h"	

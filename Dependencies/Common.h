@@ -1408,6 +1408,18 @@ namespace Common
 
 class BlueBlurCommon
 {
+	static DWORD* GetServiceGameplay(Hedgehog::Base::TSynchronizedPtr<Sonic::CApplicationDocument> doc)
+	{
+		uint32_t func = 0x0040EBD0;
+		DWORD* result;
+		__asm
+		{
+			mov     edi, doc
+			add     edi, 34h
+			call func
+			mov     result, eax
+		};
+	};
 public:
 	static Sonic::Player::CPlayerSpeedContext* GetContext()
 	{
@@ -1437,12 +1449,12 @@ public:
 
 	static bool IsModern()
 	{
-		return SONIC_CONTEXT != nullptr;
+		return GetServiceGameplay(Sonic::CApplicationDocument::GetInstance())[1] == 0;
 	}
 
 	static bool IsClassic()
 	{
-		return SONIC_CLASSIC_CONTEXT != nullptr;
+		return GetServiceGameplay(Sonic::CApplicationDocument::GetInstance())[1] == 1;
 	}
 
 	static bool IsBossSuper()

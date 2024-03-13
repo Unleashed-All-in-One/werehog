@@ -15,8 +15,19 @@ HOOK(Hedgehog::Base::CSharedString*, __fastcall, Hedgehog_Base_CSharedString_ope
 {
 	return originalHedgehog_Base_CSharedString_operator(This, Edx, a2);
 }
+//int __stdcall GAMEOBJECT_ADDCOLLIDER(Sonic::CObjectBase *gameObject, int stringSymbolName, int havokShape, int staticAddress, char flagA, int isContactPhantom)
 
+HOOK(int, __stdcall, AddCollider, 0x000D5E090, DWORD* gameObject, const Hedgehog::Base::CStringSymbol& symbol, DWORD* havokShape, int* staticAdd, char flagA, int isContact)
+{
+	std::string check(symbol.GetValue());
+	if (check == "VolumeEventTrigger")
+	{
+		printf("t");
+	}
+	return originalAddCollider(gameObject, symbol, havokShape, staticAdd, flagA, isContact);
+}
 void Testing::Install()
 {
+	INSTALL_HOOK(AddCollider);
 	//INSTALL_HOOK(Hedgehog_Base_CSharedString_operator);
 }

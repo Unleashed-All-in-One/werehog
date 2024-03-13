@@ -22,6 +22,7 @@ static const int* pColID_ObjectPhysics8 = reinterpret_cast<int*>(0x01E61B80);
 static const int* pColID_ObjectPhysics9 = reinterpret_cast<int*>(0x01E61B9C);
 static const int* pColID_ObjectPhysics10 = reinterpret_cast<int*>(0x1E5E74C);
 static const int* pColID_ObjectPhysics11 = reinterpret_cast<int*>(0x01E61B78);
+static const int* pColID_SonicCollisionMask = reinterpret_cast<int*>(0x01E0AF8C);
 // TODO: Move to somewhere else, these are StringMap/StringEnum's
 struct MsgChangePlayer : public hh::fnd::MessageTypeSet
 {

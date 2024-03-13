@@ -9,6 +9,7 @@ enum WerehogState
 	Guard
 };
 
+Sonic::Player::CPlayerSpeedContext::CStateSpeedBase* this_is_a_bad_hack_please_fix;
 SharedPtrTypeless sound, soundUnleash, soundUnleashStart;
 SharedPtrTypeless soundRegularJump;
 SharedPtrTypeless indexParticle_L, indexParticle_R;
@@ -51,19 +52,7 @@ bool init = false;
 boost::shared_ptr<Sonic::CGameObject3D> collision1;
 boost::shared_ptr<Sonic::CGameObject3D> shockwaveGameObject;
 
-struct  MsgDamage : public Hedgehog::Universe::MessageTypeSet
-{
-public:
-	HH_FND_MSG_MAKE_TYPE(0x01681E80);
-	BYTE gap4[12]; //padding
-	int* collisionMask; // seems like its not used?
-	DWORD m_Unknown1; //???
-	BYTE gap18[8];	//padding
-	CVector* m_HitPosition1; 
-	CVector* m_HitPosition2; // copy of m_HitPosition1?
-	CVector m_LaunchVelocity; // for objectphysics, determines how far the broken parts go
-	DWORD dword50; // unknown, seems to be either set to 0 or 1	
-};
+
 
 
 void sub_E78310(Sonic::Player::CPlayer* player)
@@ -74,65 +63,6 @@ void sub_E78310(Sonic::Player::CPlayer* player)
 	{
 		mov     eax, player
 		call func
-	};
-};
-class CAttackHitbox : public Sonic::CGameObject3D
-{
-public:
-	boost::shared_ptr<hh::mr::CSingleElement> m_spRenderable;
-	boost::shared_ptr<Sonic::CMatrixNodeTransform> m_spNodeEventCollision;
-	boost::shared_ptr<CRigidBody> m_spRigidBody;
-
-	Havok::SphereShape* shapeEventTrigger = new Havok::SphereShape(1);
-	virtual void AddCallback(const hh::base::THolder<Sonic::CWorld>& worldHolder,
-		Sonic::CGameDocument* pGameDocument, const boost::shared_ptr<hh::db::CDatabase>& spDatabase) override
-	{
-		Sonic::CApplicationDocument::GetInstance()->AddMessageActor("GameObject", this);
-		pGameDocument->AddUpdateUnit("0", this);
-		//Uncomment for a debug sphere
-		//hh::mr::CMirageDatabaseWrapper wrapper(spDatabase.get());
-		//// This is a debug asset that has a broken material, so it will be pure red--but that's ok, cuz we can see it.
-		//const char* assetName = "BasicSphere";
-		//boost::shared_ptr<hh::mr::CModelData> spModelData = wrapper.GetModelData(assetName, 0);
-
-		//m_spRenderable = boost::make_shared<hh::mr::CSingleElement>(spModelData);
-		/*if (!spModelData)
-			return;*/
-
-		//m_spRenderable->BindMatrixNode(m_spMatrixNodeTransform);
-		//AddRenderable("Object", m_spRenderable, true);
-		auto node = Sonic::Player::CPlayerSpeedContext::GetInstance()->m_pPlayer->m_spCharacterModel->GetNode("Hand_R");
-
-		m_spMatrixNodeTransform->NotifyChanged();
-		m_spMatrixNodeTransform->SetParent(node.get());
-		m_spMatrixNodeTransform->m_Transform.SetPosition(CVector(0, 0, 0));
-
-		m_spNodeEventCollision = boost::make_shared<Sonic::CMatrixNodeTransform>();
-		m_spNodeEventCollision->m_Transform.SetPosition(CVector(0, 0, 0));
-		m_spNodeEventCollision->NotifyChanged();
-		m_spNodeEventCollision->SetParent(m_spMatrixNodeTransform.get());
-
-
-		AddEventCollision("Normal", shapeEventTrigger, *pColID_ObjectPhysics1, true, m_spNodeEventCollision);
-	}
-	bool ProcessMessage(Hedgehog::Universe::Message& in_rMsg, bool in_Flag) override
-	{
-		if (in_Flag)
-		{
-			if (std::strstr(in_rMsg.GetType(), "MsgHitEventCollision") != nullptr)
-			{
-				auto vector1 = CVector(100, 100, 100);
-				auto out_msgDamage = boost::make_shared<MsgDamage>();
-				out_msgDamage->collisionMask = (int*)0x01E0BE18;
-				out_msgDamage->m_HitPosition1 = &vector1;
-				out_msgDamage->m_HitPosition2 = &vector1;
-				out_msgDamage->m_LaunchVelocity = Sonic::Player::CPlayerSpeedContext::GetInstance()->m_Velocity;
-				out_msgDamage->dword50 = true;
-				SendMessage(in_rMsg.m_SenderActorID, out_msgDamage);
-				return true;
-			}
-		}
-		return Sonic::CGameObject::ProcessMessage(in_rMsg, in_Flag);
 	};
 };
 WerehogState currentState;
@@ -180,7 +110,6 @@ void SetsHighSpeedVectorAndAppliesGravity(void* doc)
 		call func
 	};
 };
-Sonic::Player::CPlayerSpeedContext::CStateSpeedBase* this_is_a_bad_hack_please_fix;
 
 class CStateAttackAction_byList_Posture : public Sonic::Player::CPlayerSpeedPosture3DCommon
 {
@@ -240,8 +169,9 @@ class CStateAttackAction_byList : public Sonic::Player::CPlayerSpeedContext::CSt
 	std::string m_Posture;
 	static constexpr float ms_DecelerationForce = 0.65f;
 	static constexpr float ms_AccelerationForce = 1.4285715f; //pulled from unleashed
-	boost::shared_ptr<Sonic::CGameObject3D> collision;
+	std::vector<boost::shared_ptr<CAttackHitbox>> collision;
 
+	const char* prevAnim;
 public:
 	static constexpr const char* ms_StateName = "Evil_AttackAction_byList";
 
@@ -250,13 +180,67 @@ public:
 		auto context = GetContext();
 		return (context->m_spMatrixNode->m_Transform.m_Rotation * Eigen::Vector3f::UnitZ());
 	}
+	void GenerateHitbox(CollisionParam param, int index)
+	{
+		auto newHitbox = boost::make_shared<CAttackHitbox>();
+		collision.push_back(newHitbox);
+		Sonic::CGameDocument::GetInstance()->AddGameObject(newHitbox);
+		switch (param.BoneType)
+		{
+		case CollisionBoneType::RHand:
+		{
+			newHitbox->BindToBone("Hand_R");
+			break;
+		}
+		case CollisionBoneType::LHand:
+		{
+			newHitbox->BindToBone("Hand_L");
+			break;
+		}
+		case CollisionBoneType::RLeg:
+		{
+			newHitbox->BindToBone("Toe_R");
+			break;
+		}
+		case CollisionBoneType::LLeg:
+		{
+			newHitbox->BindToBone("Toe_L");
+			break;
+		}
+		case CollisionBoneType::Hips:
+		{
+			newHitbox->BindToBone("Hips");
+			break;
+		}
+		case CollisionBoneType::Head:
+		{
+			newHitbox->BindToBone("Head");
+			break;
+		}
+		case CollisionBoneType::MiddleLeg:
+		{
+			newHitbox->BindToBone("Toe_R");
+			break;
+		}
+		}
+		newHitbox->m_TimerMax = (param.EndFrame - param.StartFrame) / 30;
+		newHitbox->hitboxName = std::format("{0}{1}", XMLParser::GetBoneNameFromCollisionParam((int)param.BoneType), index + 1);
+	}
+	void KillHitbox(std::string name)
+	{
+		for (size_t i = 0; i < collision.size(); i++)
+		{
+			if (collision[i]->hitboxName == name)
+			{
+				auto& col = collision[i];
+				col->SendMessage(col->m_ActorID, boost::make_shared<Sonic::Message::MsgKill>());
+				collision.erase(collision.begin() + i);
+				return;
+			}
+		}
+	}
 	void EnterState() override
 	{
-		if (collision == nullptr)
-		{
-			collision = boost::make_shared<CAttackHitbox>();
-			Sonic::CGameDocument::GetInstance()->AddGameObject(collision);
-		}
 		auto context = GetContext();
 		m_LastFrame = -1;
 		m_LastActionIndex = 0;
@@ -266,6 +250,24 @@ public:
 		context->m_Velocity = ms_InitialVelocity;
 		context->m_pPlayer->m_PostureStateMachine.ChangeState<CStateAttackAction_byList_Posture>();
 	}
+	bool HasHitboxBeenSpawned(std::string name)
+	{
+		for (size_t i = 0; i < collision.size(); i++)
+		{
+			if (collision[i]->hitboxName == name)
+				return true;
+		}
+		return false;
+	}
+	void Reset()
+	{
+		for (size_t i = 0; i < collision.size(); i++)
+		{
+			collision.at(i)->SendMessage(collision.at(i)->m_ActorID, boost::make_shared<Sonic::Message::MsgKill>());
+		}
+		DebugDrawText::log("RESET", 5);
+		collision.clear();
+	}
 	void UpdateState() override
 	{
 		m_CurrentMotion = GetMotionFromName(lastAttackName);
@@ -273,6 +275,10 @@ public:
 		const auto spAnimInfo = boost::make_shared<Sonic::Message::MsgGetAnimationInfo>();
 		context->m_pPlayer->SendMessageImm(context->m_pPlayer->m_ActorID, spAnimInfo);
 		DebugDrawText::log(std::format("CSTATEATTACKACTION_AnimFrame = {0}", spAnimInfo->m_Frame).c_str(), 0);
+		if (spAnimInfo->m_Frame <= m_LastFrame)
+		{
+			Reset();
+		}
 		//if it isnt playing the anim for some reason, force it to play now
 		if (std::strstr(spAnimInfo->m_Name.c_str(), GetStateNameFromTable(lastAttackName).c_str()) == nullptr)
 			context->ChangeAnimation(GetStateNameFromTable(lastAttackName).c_str());
@@ -283,8 +289,6 @@ public:
 			context->m_pPlayer->m_PostureStateMachine.ChangeState("Standard");
 			context->ChangeState("Stand");
 			shockwaveGameObject->SendMessage(shockwaveGameObject->m_ActorID, boost::make_shared<Sonic::Message::MsgKill>());
-			collision->SendMessage(collision->m_ActorID, boost::make_shared<Sonic::Message::MsgKill>());
-			collision = nullptr;
 			return;
 		}
 		if (shockwaveGameObject)
@@ -292,6 +296,21 @@ public:
 			shockwaveGameObject->m_spMatrixNodeTransform->m_Transform.m_Position = context->m_spMatrixNode->m_Transform.m_Position + (context->m_spMatrixNode->m_Transform.m_Rotation * CVector(0, 0, 2));
 		}
 
+		//this is probably super overkill and could just be done using a for loop with no checks
+		for (size_t i = 0; i < m_CurrentMotion.Collision.BoneInfo.size(); i++)
+		{
+			std::string hitboxName = std::format("{0}{1}", XMLParser::GetBoneNameFromCollisionParam((int)m_CurrentMotion.Collision.BoneInfo[i].BoneType), i + 1);
+			
+			if (spAnimInfo->m_Frame >= m_CurrentMotion.Collision.BoneInfo[i].StartFrame && !HasHitboxBeenSpawned(hitboxName))
+			{
+				GenerateHitbox(m_CurrentMotion.Collision.BoneInfo[i], i);
+			}
+			if (spAnimInfo->m_Frame >= m_CurrentMotion.Collision.BoneInfo[i].EndFrame && HasHitboxBeenSpawned(hitboxName))
+			{
+				KillHitbox(hitboxName);
+			}
+
+		}
 		if (spAnimInfo->m_Frame >= m_CurrentMotion.MotionSpeed_FirstFrame && spAnimInfo->m_Frame < m_CurrentMotion.MotionSpeed_MiddleFrame)
 		{
 			if (m_CurrentMotion.MotionMoveSpeedRatio != 0 && m_CurrentMotion.MotionMoveSpeedRatio_H[0].FrameValue != 0)
@@ -429,11 +448,8 @@ void AddTestState(Sonic::Player::CPlayerSpeedContext* context)
 	{
 		auto state = (Sonic::Player::CPlayerSpeedContext::CStateSpeedBase*)0x016D7648;
 
-		//context->m_pPlayer->m_StateMachine.RegisterStateFactory<Sonic::Player::CrouchState>();
 		context->m_pPlayer->m_StateMachine.RegisterStateFactory<CStateAttackAction_byList>();
-		//context->m_pPlayer->m_StateMachine.RegisterStateFactory<CTestState>();
 		context->m_pPlayer->m_StateMachine.RegisterStateFactory<TestState>();
-		//context->m_pPlayer->m_StateMachine.RegisterStateFactory<state>();
 		context->m_pPlayer->m_PostureStateMachine.RegisterStateFactory<CStateAttackAction_byList_Posture>();
 		added = true;
 	}
@@ -957,12 +973,21 @@ HOOK(void, __fastcall, StandCalc, 0x00DED4E0, int* This)
 	else
 		originalStandCalc(This);
 }
+std::string getEVSId()
+{
+	uint32_t* appdocMember = (uint32_t*)Sonic::CApplicationDocument::GetInstance()->m_pMember;
+	auto gameParameters = *((DWORD*)appdocMember + 109);
+	Hedgehog::Base::CSharedString* evsIDLoc = (Hedgehog::Base::CSharedString*)(*((DWORD*)gameParameters + 32) + 44);
+	Hedgehog::Base::CSharedString* stageIDLoc = (Hedgehog::Base::CSharedString*)(*((DWORD*)gameParameters + 32) + 48);
+ 	return evsIDLoc->c_str();
+
+}
 //void __thiscall sub_DB9F90(CTempState *this)
 HOOK(void, __fastcall, CHudSonicStageUpdateParallel, 0x1098A50, Sonic::CGameObject* This, void* Edx, const hh::fnd::SUpdateInfo& in_rUpdateInfo)
 {
 	originalCHudSonicStageUpdateParallel(This, Edx, in_rUpdateInfo);
 	deltaTime = in_rUpdateInfo.DeltaTime;
-	if (BlueBlurCommon::IsClassic())
+	if (BlueBlurCommon::IsClassic() && getEVSId() == "")
 	{
 		const auto playerContext = Sonic::Player::CPlayerSpeedContext::GetInstance();
 		if (abs(playerContext->m_Velocity.x() + playerContext->m_Velocity.z()) > 0)
@@ -973,11 +998,11 @@ HOOK(void, __fastcall, CHudSonicStageUpdateParallel, 0x1098A50, Sonic::CGameObje
 		playerContext->m_pPlayer->SendMessageImm(playerContext->m_pPlayer->m_ActorID, spAnimInfo);
 		Hedgehog::Base::CSharedString stateCheck = playerContext->m_pPlayer->m_StateMachine.GetCurrentState()->GetStateName();
 		std::string stateCheckS(stateCheck.c_str());
-		DebugDrawText::log((std::string("Current Player Anim: ") + std::string(spAnimInfo->m_Name.c_str())).c_str(), 0);
-		DebugDrawText::log((std::string("tempTimerWalk: ") + std::to_string(tempTimerWalk)).c_str(), 0);
-
-		DebugDrawText::log((std::string("Current Player State: ") + stateCheckS).c_str(), 0);
-		DebugDrawText::log((std::string("Current Player Posture: ") + std::string(playerContext->m_pPlayer->m_PostureStateMachine.GetCurrentState()->m_Name.c_str())).c_str(), 0);
+		//DebugDrawText::log((std::string("Current Player Anim: ") + std::string(spAnimInfo->m_Name.c_str())).c_str(), 0);
+		//DebugDrawText::log((std::string("tempTimerWalk: ") + std::to_string(tempTimerWalk)).c_str(), 0);
+		//
+		//DebugDrawText::log((std::string("Current Player State: ") + stateCheckS).c_str(), 0);
+		//DebugDrawText::log((std::string("Current Player Posture: ") + std::string(playerContext->m_pPlayer->m_PostureStateMachine.GetCurrentState()->m_Name.c_str())).c_str(), 0);
 		if (!BlueBlurCommon::IsClassic())
 		{
 			return;

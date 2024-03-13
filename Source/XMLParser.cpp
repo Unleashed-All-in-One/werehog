@@ -36,6 +36,15 @@ std::vector<std::string> alreadyRegistered;
 std::vector<Motion> localMotionFileList;
 std::vector<WerehogAttackNew> XMLParser::attacks;
 std::vector<WerehogAttackNew> XMLParser::starterAttacks;
+////RHand,
+//LHand,
+//RLeg,
+//LLeg,
+//MiddleHand,
+//Head,
+//Hips,
+//MiddleLeg
+std::vector<std::string> collisionBoneNames = { "RHand", "LHand", "RLeg", "LLeg", "MiddleHand", "Head", "Hips", "MiddleLeg"};
 WerehogAttackNew ParseActionNode(rapidxml::xml_node<>* node, rapidxml::xml_node<>* parent)
 {
 	WerehogAttackNew attack = WerehogAttackNew();
@@ -164,6 +173,76 @@ Motion ParseMotionNode(rapidxml::xml_node<>* node)
 				{
 					returned.Effect.LEffect_Name1 = XMLParser::CLAWPARTICLE;
 				}
+			}
+		}
+		if (nameS == "Collision")
+		{
+			
+			for (rapidxml::xml_node<>* child2 = child->first_node(); child2; child2 = child2->next_sibling())
+			{
+				//example
+					
+				//<DebugDraw>true</DebugDraw>
+				//<Size1>1.f</Size1>
+				//<SizeDelta1>0.25f</SizeDelta1>
+				//<RHandStart1>1</RHandStart1>
+				//<RHandEnd1>4</RHandEnd1>
+				//<Size2>1.f</Size2>
+				//<SizeDelta2>0.25f</SizeDelta2>
+				//<HandStart2>5</LHandStart2>
+				//<LHandEnd2>8</LHandEnd2>
+
+				//list of possible bone names:
+				//RHandStart
+				//RHandEnd
+				//LHandStart
+				//LHandEnd
+				//RLegStart
+				//RLegEnd
+				//LLegStart
+				//LLegEnd
+				//MiddleHandStart
+				//MiddleHandEnd
+				//HeadStart
+				//HeadEnd
+				//HipsStart
+				//HipsEnd
+				//MiddleLegStart
+				//MiddleLegEnd
+
+				const char* name2 = child2->name();
+
+
+				if (!isPartOf(name2, "DebugDraw"))
+				{
+					std::string name2String = name2;
+					int listIndex = std::stoi(name2String.substr(name2String.find_first_of("0123456789")));
+					if (listIndex > returned.Collision.BoneInfo.size())
+					{
+						returned.Collision.BoneInfo.push_back(CollisionParam());
+					}
+					if (isPartOf(name2, std::format("Size{0}",listIndex).c_str()))
+					{
+						returned.Collision.BoneInfo[listIndex-1].Size = std::stof(child2->value());
+					}
+					if (isPartOf(name2, std::format("SizeDelta{0}",listIndex).c_str()))
+					{
+						returned.Collision.BoneInfo[listIndex-1].SizeDelta = std::stof(child2->value());
+					}
+					for (size_t i = 0; i < collisionBoneNames.size(); i++)
+					{
+						if (isPartOf(name2, std::format("{0}Start{1}", collisionBoneNames[i], listIndex).c_str()))
+						{
+							returned.Collision.BoneInfo[listIndex - 1].BoneType = (CollisionBoneType)i;
+							returned.Collision.BoneInfo[listIndex - 1].StartFrame = std::stof(child2->value());
+						}
+						if (isPartOf(name2, std::format("{0}End{1}", collisionBoneNames[i], listIndex).c_str()))
+						{
+							returned.Collision.BoneInfo[listIndex - 1].EndFrame = std::stof(child2->value());
+						}
+					}
+					
+				}			
 			}
 		}
 

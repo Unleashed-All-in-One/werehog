@@ -4,6 +4,25 @@ enum ResourceType
 	CSB,
 	Effect
 };
+enum class CollisionBoneType
+{
+	RHand,
+	LHand,
+	RLeg,
+	LLeg,
+	MiddleHand,
+	Head,
+	Hips,
+	MiddleLeg // huuuh?
+};
+struct CollisionParam
+{
+	float Size;
+	float SizeDelta;
+	CollisionBoneType BoneType;
+	float StartFrame;
+	float EndFrame;
+};
 struct Param
 {
 	std::string FileName;
@@ -45,6 +64,14 @@ struct EffectConfig
 	std::string REffect_Name1;
 	std::string LEffect_Name1;
 };
+struct CollisionConfig
+{
+	bool DebugDraw;
+	std::vector<CollisionParam> BoneInfo;
+	//sonic team were really funny people, they decided to not separate attack
+	//hitboxes into separate xml nodes, instead they made it so that the number
+	//after any variable corresponds to an entry in a list.
+};
 struct MoveRatioHelper
 {
 	float FrameStart;
@@ -78,6 +105,7 @@ struct Motion {
 	std::string MoveType;
 	std::string ComposedFileName;
 	EffectConfig Effect;
+	CollisionConfig Collision;
 
 	ResourceInfo ResourceInfos;
 	TriggerInfo TriggerInfos;
@@ -122,6 +150,11 @@ public:
 	static Motion GetMotionFromName(std::string in);
 	static WerehogAttackNew GetAttackFromName(std::string in);
 	static std::string GetStateNameFromTable(std::string in);
+	static std::string GetBoneNameFromCollisionParam(int index)
+	{
+		std::vector<std::string> collisionBoneNames = { "RHand", "LHand", "RLeg", "LLeg", "MiddleHand", "Head", "Hips", "MiddleLeg" };
+		return collisionBoneNames[index];
+	}
 
 };
 
