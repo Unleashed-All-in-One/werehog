@@ -1295,7 +1295,10 @@ namespace Common
 		}
 		return false;
 	}	
-
+	inline float lerpUnclampedf(const float a, const float b, const float t)
+	{
+		return a + (b - a) * t;
+	}
 	
 	static char* IntToString(int num, const char* format)
 	{

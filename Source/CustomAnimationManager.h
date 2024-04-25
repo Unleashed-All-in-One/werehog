@@ -20,7 +20,7 @@ struct AnimationEntry
 	std::string stateName;
 	std::string fileName;
 	float speed;
-	
+	bool loop;	
 };
 struct CAnimationStateSet
 {
@@ -33,6 +33,6 @@ class CustomAnimationManager
 
 public:
 	static void Install();
-	static void RegisterAnimation(std::string stateName, std::string fileName, float speed = 1);
+	static void RegisterAnimation(std::string stateName, std::string fileName, float speed = 1, bool doLoop = false);
 	static std::vector<AnimationEntry> GetAnims();
 };

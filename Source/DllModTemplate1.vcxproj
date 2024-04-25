@@ -208,6 +208,8 @@
     <ClInclude Include="ArchiveTreePatcher.h" />
     <ClInclude Include="ClassicPluginExtensions.h" />
     <ClInclude Include="Configuration.h" />
+    <ClInclude Include="ConversionAPI.h" />
+    <ClInclude Include="CStateArmSwing.h" />
     <ClInclude Include="CustomAnimationManager.h" />
     <ClInclude Include="DllMain.cpp" />
     <ClInclude Include="EnemyBase.h" />

@@ -51,6 +51,8 @@
 #include "CustomAnimationManager.h"	
 #include "ClassicPluginExtensions.h"	
 
+#include "ConversionAPI.h"
 #include "ArchiveTreePatcher.h"
 #include "Configuration.h"
+#include "CStateArmSwing.h"
 #include "EvilSonic.h"

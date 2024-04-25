@@ -12,6 +12,7 @@ static const int* pColID_Unknown6 = reinterpret_cast<int*>(0x01E0BE28);
 static const int* pColID_Unknown7 = reinterpret_cast<int*>(0x01E0BE18);
 static const int* pColID_Unknown8 = reinterpret_cast<int*>(0x01E0BE34);
 static const int* pColID_ObjectPhysics1 = reinterpret_cast<int*>(0x1E5E79C);
+static const int* TypePlayerAttack = reinterpret_cast<int*>(0x01E5E794);
 static const int* pColID_ObjectPhysics2 = reinterpret_cast<int*>(0x01E5E79C);
 static const int* pColID_ObjectPhysics3 = reinterpret_cast<int*>(0x1E5E7B4);
 static const int* pColID_ObjectPhysics4 = reinterpret_cast<int*>(0x1E5E804);

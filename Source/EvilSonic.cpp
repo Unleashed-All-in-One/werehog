@@ -51,6 +51,7 @@ bool cameraAnimTempExecuted = false;
 bool init = false;
 boost::shared_ptr<Sonic::CGameObject3D> collision1;
 boost::shared_ptr<Sonic::CGameObject3D> shockwaveGameObject;
+boost::shared_ptr<Sonic::CMatrixNodeTransform> CStateArmSwing::target;
 
 
 
@@ -449,9 +450,10 @@ void AddTestState(Sonic::Player::CPlayerSpeedContext* context)
 		auto state = (Sonic::Player::CPlayerSpeedContext::CStateSpeedBase*)0x016D7648;
 
 		context->m_pPlayer->m_StateMachine.RegisterStateFactory<CStateAttackAction_byList>();
+		context->m_pPlayer->m_StateMachine.RegisterStateFactory<CStateArmSwing>();
 		context->m_pPlayer->m_StateMachine.RegisterStateFactory<TestState>();
 		context->m_pPlayer->m_PostureStateMachine.RegisterStateFactory<CStateAttackAction_byList_Posture>();
-		added = true;
+		//added = true;
 	}
 }
 
@@ -983,7 +985,7 @@ std::string getEVSId()
 
 }
 //void __thiscall sub_DB9F90(CTempState *this)
-HOOK(void, __fastcall, CHudSonicStageUpdateParallel, 0x1098A50, Sonic::CGameObject* This, void* Edx, const hh::fnd::SUpdateInfo& in_rUpdateInfo)
+HOOK(void, __fastcall, CHudSonicStageUpdateParallel, 0xDDABA0, Sonic::CGameObject* This, void* Edx, const hh::fnd::SUpdateInfo& in_rUpdateInfo)
 {
 	originalCHudSonicStageUpdateParallel(This, Edx, in_rUpdateInfo);
 	deltaTime = in_rUpdateInfo.DeltaTime;
@@ -1243,10 +1245,9 @@ HOOK(void*, __fastcall, _InitializePlayer, 0x00D96110, void* This)
 {
 	void* result = original_InitializePlayer(This);
 	auto context = Sonic::Player::CPlayerSpeedContext::GetInstance();    // Hack: there's a better way to do this but whatever. This writes to the singleton anyway.
-	if (BlueBlurCommon::IsClassic())
-	{
+	
 		AddTestState(context);
-	}
+	
 	return result;
 }
 extern "C" __declspec(dllexport) float API_GetLife()
@@ -1362,6 +1363,12 @@ void EvilSonic::Install()
 
 	CustomAnimationManager::RegisterAnimation("Evilsonic_runS", "evilsonic_runS");
 	CustomAnimationManager::RegisterAnimation("Evilsonic_pillar_idle", "evilsonic_pillar_idle");
+	CustomAnimationManager::RegisterAnimation("Evilsonic_pillar_up", "evilsonic_pillar_up", 1, true);
+	CustomAnimationManager::RegisterAnimation("Evilsonic_pillar_upH", "evilsonic_pillar_upH", 1, false);
+	CustomAnimationManager::RegisterAnimation("Evilsonic_gate", "evilsonic_gate", 1, false);
+	CustomAnimationManager::RegisterAnimation("Evilsonic_pillar_turnL", "evilsonic_pillar_turnL");
+	CustomAnimationManager::RegisterAnimation("Evilsonic_pillar_turnR", "evilsonic_pillar_turnR");
+	CustomAnimationManager::RegisterAnimation("Evilsonic_pillar_fall", "evilsonic_pillar_fall", 1, true);
 	CustomAnimationManager::RegisterAnimation("Evilsonic_run", "evilsonic_run", 3);
 	CustomAnimationManager::RegisterAnimation("Evilsonic_runE", "evilsonic_runE");
 	CustomAnimationManager::RegisterAnimation("Evilsonic_dash_jumpS", "evilsonic_dash_jumpS");

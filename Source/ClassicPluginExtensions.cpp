@@ -204,7 +204,7 @@ void Extensions_AddTestState(Sonic::Player::CPlayerSpeedContext* context)
 		context->m_pPlayer->m_StateMachine.RegisterStateFactory<Sonic::Player::CSonicStateStartCrouching>();
 
 		context->m_pPlayer->m_PostureStateMachine.RegisterStateFactory<CStartWerehogPosture>();
-		added = true;
+		//added = true;
 	}
 }
 HOOK(void*, __fastcall, Extensions_InitializePlayer, 0x00D96110, void* This)

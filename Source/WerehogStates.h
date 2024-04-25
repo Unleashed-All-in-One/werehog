@@ -56,8 +56,8 @@ public:
 		m_spNodeEventCollision->m_Transform.SetPosition(CVector(0, 0, 0));
 		m_spNodeEventCollision->NotifyChanged();
 		m_spNodeEventCollision->SetParent(m_spMatrixNodeTransform.get());
-
-		AddEventCollision("ItemBoost", shapeEventTrigger, 27, false, m_spNodeEventCollision);
+		//27
+		AddEventCollision("ItemBoost", shapeEventTrigger, *pColID_ObjectPhysics1, false, m_spNodeEventCollision);
 	}
 	void UpdateParallel(const Hedgehog::Universe::SUpdateInfo& updateInfo) override
 	{
