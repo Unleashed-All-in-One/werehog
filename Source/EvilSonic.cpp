@@ -51,10 +51,8 @@ bool cameraAnimTempExecuted = false;
 bool init = false;
 boost::shared_ptr<Sonic::CGameObject3D> collision1;
 boost::shared_ptr<Sonic::CGameObject3D> shockwaveGameObject;
-boost::shared_ptr<Sonic::CMatrixNodeTransform> CStateArmSwing::target;
-
-
-
+Hedgehog::math::CVector CStateArmSwing::target;
+WerehogState currentState;
 
 void sub_E78310(Sonic::Player::CPlayer* player)
 {
@@ -66,7 +64,6 @@ void sub_E78310(Sonic::Player::CPlayer* player)
 		call func
 	};
 };
-WerehogState currentState;
 
 bool IsCurrentAnimationName(std::string in)
 {

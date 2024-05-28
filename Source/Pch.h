@@ -44,6 +44,7 @@
 #define DEBUG_DRAW_TEXT_DLL_IMPORT	
 #include "XMLParser.h"
 #include "DebugDrawText.h"	
+#include "Time.h"
 #include "Temporary.h"	
 #include "WerehogStates.h"
 #include "Testing.h"	

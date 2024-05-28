@@ -45,7 +45,7 @@ class SUConversionAPI
 {
 private:
 
-	LIB_FUNCTION(boost::shared_ptr<Sonic::CMatrixNodeTransform>, "UnleashedConversion.dll", API_GetClosestSetObjectForArmswing);
+	LIB_FUNCTION(Hedgehog::Math::CVector, "UnleashedConversion.dll", API_GetClosestSetObjectForArmswing);
 
 public:
 	/// <summary>
@@ -58,9 +58,9 @@ public:
 		return instance != nullptr ? instance : instance = new SUConversionAPI();
 	}
 
-	static boost::shared_ptr<Sonic::CMatrixNodeTransform> GetClosestSetObjectForArmswing()
+	static Hedgehog::Math::CVector GetClosestSetObjectForArmswing()
 	{
-		GENERIC_EXPORT(boost::shared_ptr<Sonic::CMatrixNodeTransform>, API_GetClosestSetObjectForArmswing);
+		GENERIC_EXPORT(Hedgehog::Math::CVector, API_GetClosestSetObjectForArmswing);
 	}
 
 	/// <summary>

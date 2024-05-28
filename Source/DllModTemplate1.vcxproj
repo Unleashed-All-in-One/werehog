@@ -201,6 +201,7 @@
     <ClCompile Include="EvilSonic.cpp" />
     <ClCompile Include="Temporary.cpp" />
     <ClCompile Include="Testing.cpp" />
+    <ClCompile Include="Time.cpp" />
     <ClCompile Include="WerehogStates.cpp" />
     <ClCompile Include="XMLParser.cpp" />
   </ItemGroup>
@@ -217,6 +218,7 @@
     <ClInclude Include="EvilSonic.h" />
     <ClInclude Include="Temporary.h" />
     <ClInclude Include="Testing.h" />
+    <ClInclude Include="Time.h" />
     <ClInclude Include="WerehogStates.h" />
     <ClInclude Include="XMLParser.h" />
   </ItemGroup>

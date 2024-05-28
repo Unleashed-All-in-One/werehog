@@ -5,9 +5,10 @@ class CStateArmSwing : public Sonic::Player::CPlayerSpeedContext::CStateSpeedBas
 	bool isDoingHoming;
 	SharedPtrTypeless soundArmStretch;
 	Hedgehog::math::CVector posStartArm;
+	float maximumTime = 0.7f;
 public:
 	static constexpr const char* ms_StateName = "EvilArmSwing";
-	static boost::shared_ptr<Sonic::CMatrixNodeTransform> target;
+	static Hedgehog::math::CVector target;
 
 	static float easeInOutQuart(float x)
 	{
@@ -23,32 +24,28 @@ public:
 		posStartArm = context->m_spMatrixNode->m_Transform.m_Position;
 		werehogArmHoming_timer = 0;
 		target = SUConversionAPI::GetClosestSetObjectForArmswing();
-		if (target == nullptr)
-		{
-			DebugDrawText::log("Null armswing target!!! Please fix!");
-			context->ChangeState("Jump");
-		}
+		
 	}
 	void UpdateState() override
 	{
+		auto context = GetContext();
 		auto inputPtr = &Sonic::CInputState::GetInstance()->m_PadStates[Sonic::CInputState::GetInstance()->m_CurrentPadStateIndex];
-
 		DebugDrawText::log("CanDo", 0);
-		
-			if (werehogArmHoming_timer >= 1)
-			{
-				werehogArmHoming_timer = 0;
-			}
-			werehogArmHoming_timer += Configuration::getDeltaTime();
+		if (werehogArmHoming_timer >= maximumTime)
+		{
+			werehogArmHoming_timer = 0;
+			context->ChangeState(StateAction::Stand);
+			return;
+		}
+		werehogArmHoming_timer += Configuration::getDeltaTime();
 
-			GetContext()->m_spMatrixNode->m_Transform.SetPosition(
-				Hedgehog::math::CVector(
-					Common::lerpUnclampedf(posStartArm.x(), target->m_Transform.m_Position.x(), easeInOutQuart(werehogArmHoming_timer / 1)),
-					Common::lerpUnclampedf(posStartArm.y(), target->m_Transform.m_Position.y(), easeInOutQuart(werehogArmHoming_timer / 1)),
-					Common::lerpUnclampedf(posStartArm.z(), target->m_Transform.m_Position.z(), easeInOutQuart(werehogArmHoming_timer / 1))
-				)
-			);
-			GetContext()->m_Velocity = Hedgehog::math::CVector(0, 0, 0);
-		
+		context->m_spMatrixNode->m_Transform.SetPosition(
+			Hedgehog::math::CVector(
+				Common::lerpUnclampedf(posStartArm.x(), target.x(), easeInOutQuart(werehogArmHoming_timer / maximumTime)),
+				Common::lerpUnclampedf(posStartArm.y(), target.y(), easeInOutQuart(werehogArmHoming_timer / maximumTime)),
+				Common::lerpUnclampedf(posStartArm.z(), target.z(), easeInOutQuart(werehogArmHoming_timer / maximumTime))
+			)
+		);
+		context->m_Velocity = Hedgehog::math::CVector(0, 0, 0);
 	}
 };
