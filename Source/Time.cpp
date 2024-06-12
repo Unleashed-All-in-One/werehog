@@ -86,6 +86,7 @@ void* updateDirectorCustom(void* context, float elapsedTime)
 	finishRenderer(context);
 	return finishUpdater(context);
 }
+//elapsed time literally is just frameRate / 1
 HOOK(void*, __fastcall, UpdateDirectorSimple, 0x1105A60, void* This, void* Edx, void* context, float elapsedTime)
 {
     if (Time::freeze)

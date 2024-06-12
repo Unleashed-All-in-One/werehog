@@ -158,7 +158,11 @@ HOOK(char, __fastcall, StateCrouch_End, 0xDEF0A0, Sonic::Player::CSonicStateStar
 	//why does this make the cam-anim work?????
 	return 0;
 }
-
+struct FFF
+{
+	BYTE _gap[0x531];
+	int m_Mode;
+};
 HOOK(char, __stdcall, Camtest, 0xDFCE30, Sonic::Player::CPlayerSpeedContext::CStateSpeedBase* a2)
 {
 	if (!BlueBlurCommon::IsClassic())
@@ -211,8 +215,11 @@ HOOK(void*, __fastcall, Extensions_InitializePlayer, 0x00D96110, void* This)
 {
 	void* result = originalExtensions_InitializePlayer(This);
 	auto context = Sonic::Player::CPlayerSpeedContext::GetInstance();    // Hack: there's a better way to do this but whatever. This writes to the singleton anyway.
-	
+
+	if (!BlueBlurCommon::IsClassic())
+	{
 		Extensions_AddTestState(context);
+	}
 	
 	return result;
 }
@@ -223,7 +230,7 @@ void ClassicPluginExtensions::Install()
 	WRITE_MEMORY(0x015DBAA0, char, "evilsonic_dashS");
 	INSTALL_HOOK(Camtest);
 	WRITE_JUMP(0x00DC69B1, TestJumpNew);
-	WRITE_JUMP(0x00EA3F85, TestJumpNew51);
+	//WRITE_JUMP(0x00EA3F85, TestJumpNew51); //messes with object physics
 	//disable all of this below to disable classic cam anims
 	INSTALL_HOOK(Extensions_InitializePlayer);
 	INSTALL_HOOK(DEF010);

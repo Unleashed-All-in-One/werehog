@@ -13,16 +13,16 @@ extern "C" __declspec(dllexport) void Init(ModInfo * modInfo)
 	Configuration::modPath = modDir + STAGE_LIST_FILE;*/
 	
 	//ArchivePatcher::Install();
-	CustomAnimationManager::Install();
+	//CustomAnimationManager::Install();
 	ClassicPluginExtensions::Install();
 	EnemyBase::Install();
 	XMLParser::Install(modInfo->CurrentMod->Path);
-	EvilSonic::Install();
-	Testing::Install();
+	//EvilSonic::Install();
+	//Testing::Install();
 }
 extern "C" void __declspec(dllexport) OnFrame()
 {
-	auto inputPtr = &Sonic::CInputState::GetInstance()->m_PadStates[Sonic::CInputState::GetInstance()->m_CurrentPadStateIndex];
+	/*auto inputPtr = &Sonic::CInputState::GetInstance()->m_PadStates[Sonic::CInputState::GetInstance()->m_CurrentPadStateIndex];
 	if (inputPtr->IsTapped(Sonic::eKeyState_Y))
-		Time::freeze = !Time::freeze;
+		Time::freeze = !Time::freeze;*/
 }

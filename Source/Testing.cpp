@@ -28,6 +28,6 @@ HOOK(int, __stdcall, AddCollider, 0x000D5E090, DWORD* gameObject, const Hedgehog
 }
 void Testing::Install()
 {
-	INSTALL_HOOK(AddCollider);
+	//INSTALL_HOOK(AddCollider);
 	//INSTALL_HOOK(Hedgehog_Base_CSharedString_operator);
 }

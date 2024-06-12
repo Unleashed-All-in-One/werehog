@@ -57,7 +57,7 @@ public:
 		m_spNodeEventCollision->NotifyChanged();
 		m_spNodeEventCollision->SetParent(m_spMatrixNodeTransform.get());
 		//27
-		AddEventCollision("ItemBoost", shapeEventTrigger, *pColID_ObjectPhysics1, false, m_spNodeEventCollision);
+		AddEventCollision("Normal", shapeEventTrigger, *(int*)0x1E0AF28, false, m_spNodeEventCollision);
 	}
 	void UpdateParallel(const Hedgehog::Universe::SUpdateInfo& updateInfo) override
 	{
@@ -75,7 +75,7 @@ public:
 			{
 				auto vector1 = CVector(100, 100, 100);
 				auto out_msgDamage = boost::make_shared<Sonic::Message::MsgDamage>();
-				out_msgDamage->collisionMask = (int*)0x01E0BE34;
+				out_msgDamage->collisionMask = (int*)0x01E0BE24;
 				out_msgDamage->m_HitPosition1 = &vector1;
 				out_msgDamage->m_HitPosition2 = &vector1;
 				out_msgDamage->m_LaunchVelocity = Sonic::Player::CPlayerSpeedContext::GetInstance()->m_Velocity;
