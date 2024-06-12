@@ -26,7 +26,7 @@ HOOK(int, __stdcall, AddCollider, 0x000D5E090, DWORD* gameObject, const Hedgehog
 	}
 	return originalAddCollider(gameObject, symbol, havokShape, staticAdd, flagA, isContact);
 }
-void Testing::Install()
+void Testing::registerPatches()
 {
 	//INSTALL_HOOK(AddCollider);
 	//INSTALL_HOOK(Hedgehog_Base_CSharedString_operator);

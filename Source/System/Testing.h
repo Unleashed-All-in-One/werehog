@@ -3,7 +3,7 @@ class Testing
 {
 
 public:
-	static void Install();
+	static void registerPatches();
 
 
 };

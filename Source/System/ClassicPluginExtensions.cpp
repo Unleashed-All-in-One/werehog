@@ -216,21 +216,21 @@ HOOK(void*, __fastcall, Extensions_InitializePlayer, 0x00D96110, void* This)
 	void* result = originalExtensions_InitializePlayer(This);
 	auto context = Sonic::Player::CPlayerSpeedContext::GetInstance();    // Hack: there's a better way to do this but whatever. This writes to the singleton anyway.
 
-	if (!BlueBlurCommon::IsClassic())
-	{
+	//if (!BlueBlurCommon::IsClassic())
+	//{
 		Extensions_AddTestState(context);
-	}
+	//}
 	
 	return result;
 }
 
-void ClassicPluginExtensions::Install()
+void ClassicPluginExtensions::registerPatches()
 {
 
 	WRITE_MEMORY(0x015DBAA0, char, "evilsonic_dashS");
 	INSTALL_HOOK(Camtest);
 	WRITE_JUMP(0x00DC69B1, TestJumpNew);
-	//WRITE_JUMP(0x00EA3F85, TestJumpNew51); //messes with object physics
+	WRITE_JUMP(0x00EA3F85, TestJumpNew51); //messes with object physics
 	//disable all of this below to disable classic cam anims
 	INSTALL_HOOK(Extensions_InitializePlayer);
 	INSTALL_HOOK(DEF010);

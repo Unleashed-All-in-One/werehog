@@ -33,7 +33,7 @@ class EvilSonic
 {
 
 public:
-	static void Install();
+	static void registerPatches();
 
 
 };

@@ -32,7 +32,7 @@ class CustomAnimationManager
 {
 
 public:
-	static void Install();
+	static void registerPatches();
 	static void RegisterAnimation(std::string stateName, std::string fileName, float speed = 1, bool doLoop = false);
 	static std::vector<AnimationEntry> GetAnims();
 };

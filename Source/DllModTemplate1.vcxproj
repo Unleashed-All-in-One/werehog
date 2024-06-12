@@ -199,6 +199,7 @@
       <PrecompiledHeaderFile Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Pch.h</PrecompiledHeaderFile>
     </ClCompile>
     <ClCompile Include="EvilSonic.cpp" />
+    <ClCompile Include="System\EvilConfiguration.cpp" />
     <ClCompile Include="System\Temporary.cpp" />
     <ClCompile Include="System\Testing.cpp" />
     <ClCompile Include="System\Time.cpp" />
@@ -206,6 +207,8 @@
     <ClCompile Include="System\XMLParser.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="EvilStates\EvilStateAttackAction_byList.h" />
+    <ClInclude Include="EvilStates\EvilStateAttackPosture_byList.h" />
     <ClInclude Include="System\ArchiveTreePatcher.h" />
     <ClInclude Include="System\ClassicPluginExtensions.h" />
     <ClInclude Include="Configuration.h" />
@@ -216,6 +219,7 @@
     <ClInclude Include="EnemyBase.h" />
     <ClInclude Include="Pch.h" />
     <ClInclude Include="EvilSonic.h" />
+    <ClInclude Include="System\EvilConfiguration.h" />
     <ClInclude Include="System\Temporary.h" />
     <ClInclude Include="System\Testing.h" />
     <ClInclude Include="System\Time.h" />

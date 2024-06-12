@@ -53,9 +53,12 @@
 #include "System\ConversionAPI.h"
 #include "System\XMLParser.h"
 #include "System\ArchiveTreePatcher.h"
+#include "System\EvilConfiguration.h"
 
 //EvilStates
 #include "WerehogStates.h"
+#include "EvilStates\EvilStateAttackPosture_byList.h"
+#include "EvilStates\EvilStateAttackAction_byList.h"
 #include "EnemyBase.h"	
 #include "CStateArmSwing.h"
 #include "EvilSonic.h"
