@@ -124,6 +124,7 @@ namespace Hedgehog::Mirage
     static inline BB_FUNCTION_PTR(void, __thiscall, fpCMirageDatabaseWrapperGetVisibilityTreeData, 0x72F490,
         CMirageDatabaseWrapper* This, boost::shared_ptr<CVisibilityTreeData>& out_spVisibilityTreeData, const Hedgehog::Base::CSharedString& in_rName, size_t in_Unknown);
 
+
     class CMirageDatabaseWrapper : public Hedgehog::Base::CObject
     {
     public:

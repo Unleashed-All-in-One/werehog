@@ -14,7 +14,7 @@ extern "C" __declspec(dllexport) void Init(ModInfo * modInfo)
 	}*//*
 	Configuration::modPath = modDir + STAGE_LIST_FILE;*/
 	
-	//ArchivePatcher::registerPatches();
+	ArchiveTreePatcher::applyPatches();
 	EvilGlobal::initializeValues();
 	CustomAnimationManager::registerPatches();
 	ClassicPluginExtensions::registerPatches();
