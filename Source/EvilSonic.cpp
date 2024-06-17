@@ -139,24 +139,6 @@ public:
 	}
 
 };
-
-// Func for adding the test state.
-// Fun fact: declaring and assigning a STATIC variable in a func like this will only do this *once.*	
-void AddTestState(Sonic::Player::CPlayerSpeedContext* context)
-{
-	static bool added = false;
-	if (added) return;
-
-	if (!added)
-	{
-		context->m_pPlayer->m_StateMachine.RegisterStateFactory<CStateAttackAction_byList>();
-		context->m_pPlayer->m_StateMachine.RegisterStateFactory<CStateArmSwing>();
-		context->m_pPlayer->m_StateMachine.RegisterStateFactory<TestState>();
-		context->m_pPlayer->m_PostureStateMachine.RegisterStateFactory<CStateAttackAction_byList_Posture>();
-		//added = true;
-	}
-}
-
 void AddImpulse(CVector impulse, bool relative)
 {
 	auto context = Sonic::Player::CPlayerSpeedContext::GetInstance();
@@ -948,16 +930,7 @@ HOOK(void, __fastcall, CHudSonicStageUpdateParallel, 0xDDABA0, Sonic::CGameObjec
 	}
 }
 
-// Call the function when we initialize everything.
-HOOK(void*, __fastcall, CPlayerCreator_CCreate_Execute, 0x00D96110, void* This)
-{
-	void* result = originalCPlayerCreator_CCreate_Execute(This);
-	auto context = Sonic::Player::CPlayerSpeedContext::GetInstance();    // Hack: there's a better way to do this but whatever. This writes to the singleton anyway.
-	
-		AddTestState(context);
-	
-	return result;
-}
+
 extern "C" __declspec(dllexport) float API_GetLife()
 {
 	return EvilGlobal::parameters->lifeCurrentAmount;
@@ -1092,7 +1065,6 @@ void EvilSonic::registerPatches()
 	//INSTALL_HOOK(CSonicStateWalk_Update);
 
 	INSTALL_HOOK(Evil_InitializeParametersForEditor);
-	INSTALL_HOOK(CPlayerCreator_CCreate_Execute);
 	INSTALL_HOOK(CHudSonicStageUpdateParallel);
 	INSTALL_HOOK(CPlayerSpeedContext_AddCallback);
 

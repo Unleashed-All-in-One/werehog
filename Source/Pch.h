@@ -49,7 +49,6 @@
 #include "System\Temporary.h"	
 #include "System\Testing.h"	
 #include "System\CustomAnimationManager.h"	
-#include "System\ClassicPluginExtensions.h"	
 #include "System\ConversionAPI.h"
 #include "System\XMLParser.h"
 #include "System\ArchiveTreePatcher.h"
@@ -57,8 +56,12 @@
 
 //EvilStates
 #include "WerehogStates.h"
-#include "EvilStates\EvilStateAttackPosture_byList.h"
-#include "EvilStates\EvilStateAttackAction_byList.h"
+#include "CameraMotionForBlueBlur.h"	
+#include "EvilStateMachine\Posture\EvilPostureIntro.h"
+#include "EvilStateMachine\Posture\EvilStateAttackPosture_byList.h"
+#include "EvilStateMachine\State\EvilStateAttackAction_byList.h"
 #include "EnemyBase.h"	
 #include "CStateArmSwing.h"
 #include "EvilSonic.h"
+
+#include "System\ClassicPluginExtensions.h"	

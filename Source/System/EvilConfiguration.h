@@ -1,4 +1,9 @@
 #pragma once
+namespace Sonic
+{
+	class CMotionCameraController;
+}
+
 struct EvilParameters
 {
 	float attackVelocityDivider;
@@ -21,4 +26,6 @@ public:
 	static WerehogAttackNew GetAttackFromName();
 	static std::string GetStateNameFromTable(std::string in);
 	static void initializeValues();
+
+	static boost::shared_ptr<Sonic::CMotionCameraController> m_spMotionCameraController;
 };

@@ -1,6 +1,7 @@
 EvilParameters* EvilGlobal::parameters;
 std::string EvilGlobal::lastAttackName;
 boost::shared_ptr<Sonic::CGameObject3D> EvilGlobal::shockwaveGameObject;
+boost::shared_ptr<Sonic::CMotionCameraController> EvilGlobal::m_spMotionCameraController;
 
 Motion EvilGlobal::GetMotionFromName(std::string in_Name)
 {

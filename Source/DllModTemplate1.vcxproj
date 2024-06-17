@@ -207,8 +207,10 @@
     <ClCompile Include="System\XMLParser.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="EvilStates\EvilStateAttackAction_byList.h" />
-    <ClInclude Include="EvilStates\EvilStateAttackPosture_byList.h" />
+    <ClInclude Include="CameraMotionForBlueBlur.h" />
+    <ClInclude Include="EvilStateMachine\Posture\EvilPostureIntro.h" />
+    <ClInclude Include="EvilStateMachine\State\EvilStateAttackAction_byList.h" />
+    <ClInclude Include="EvilStateMachine\Posture\EvilStateAttackPosture_byList.h" />
     <ClInclude Include="System\ArchiveTreePatcher.h" />
     <ClInclude Include="System\ClassicPluginExtensions.h" />
     <ClInclude Include="Configuration.h" />
