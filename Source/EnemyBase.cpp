@@ -101,7 +101,7 @@ HOOK(void, __fastcall, EnemyBaseUpdateParallel, 0x1098A50, Sonic::CGameObject* T
 	DebugDrawText::log((std::format("Timer Attack Chain: ") + std::to_string(timerAttackChain)).c_str(), 0);
 
 }
-void EnemyBase::Install()
+void EnemyBase::registerPatches()
 {
 	enemyList = EnemyList();
 	INSTALL_HOOK(EnemyBaseUpdateParallel);

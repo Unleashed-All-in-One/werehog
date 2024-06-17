@@ -79,7 +79,7 @@ std::vector<AnimationEntry> CustomAnimationManager::GetAnims()
 {
     return CUSTOM_ANIMATIONS;
 }
-void CustomAnimationManager::Install()
+void CustomAnimationManager::registerPatches()
 {
     // Add drift animations to the animation list
     INSTALL_HOOK(InitializeSonicAnimationList);

@@ -3,7 +3,7 @@ class EnemyBase
 {
 
 public:
-	static void Install();
+	static void registerPatches();
 
 
 };

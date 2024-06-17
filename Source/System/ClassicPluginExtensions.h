@@ -4,5 +4,5 @@ class ClassicPluginExtensions
 {
 
 public:
-	static void Install();
+	static void registerPatches();
 };

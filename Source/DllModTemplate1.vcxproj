@@ -181,10 +181,10 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="ArchiveTreePatcher.cpp" />
-    <ClCompile Include="ClassicPluginExtensions.cpp" />
+    <ClCompile Include="System\ArchiveTreePatcher.cpp" />
+    <ClCompile Include="System\ClassicPluginExtensions.cpp" />
     <ClCompile Include="Configuration.cpp" />
-    <ClCompile Include="CustomAnimationManager.cpp" />
+    <ClCompile Include="System\CustomAnimationManager.cpp" />
     <ClCompile Include="EnemyBase.cpp" />
     <ClCompile Include="EvilSonicStateAttackAction_ByList.cpp" />
     <ClCompile Include="Mod.cpp" />
@@ -199,28 +199,34 @@
       <PrecompiledHeaderFile Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Pch.h</PrecompiledHeaderFile>
     </ClCompile>
     <ClCompile Include="EvilSonic.cpp" />
-    <ClCompile Include="Temporary.cpp" />
-    <ClCompile Include="Testing.cpp" />
-    <ClCompile Include="Time.cpp" />
+    <ClCompile Include="System\EvilConfiguration.cpp" />
+    <ClCompile Include="System\Temporary.cpp" />
+    <ClCompile Include="System\Testing.cpp" />
+    <ClCompile Include="System\Time.cpp" />
     <ClCompile Include="WerehogStates.cpp" />
-    <ClCompile Include="XMLParser.cpp" />
+    <ClCompile Include="System\XMLParser.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="ArchiveTreePatcher.h" />
-    <ClInclude Include="ClassicPluginExtensions.h" />
+    <ClInclude Include="CameraMotionForBlueBlur.h" />
+    <ClInclude Include="EvilStateMachine\Posture\EvilPostureIntro.h" />
+    <ClInclude Include="EvilStateMachine\State\EvilStateAttackAction_byList.h" />
+    <ClInclude Include="EvilStateMachine\Posture\EvilStateAttackPosture_byList.h" />
+    <ClInclude Include="System\ArchiveTreePatcher.h" />
+    <ClInclude Include="System\ClassicPluginExtensions.h" />
     <ClInclude Include="Configuration.h" />
-    <ClInclude Include="ConversionAPI.h" />
+    <ClInclude Include="System\ConversionAPI.h" />
     <ClInclude Include="CStateArmSwing.h" />
-    <ClInclude Include="CustomAnimationManager.h" />
+    <ClInclude Include="System\CustomAnimationManager.h" />
     <ClInclude Include="DllMain.cpp" />
     <ClInclude Include="EnemyBase.h" />
     <ClInclude Include="Pch.h" />
     <ClInclude Include="EvilSonic.h" />
-    <ClInclude Include="Temporary.h" />
-    <ClInclude Include="Testing.h" />
-    <ClInclude Include="Time.h" />
+    <ClInclude Include="System\EvilConfiguration.h" />
+    <ClInclude Include="System\Temporary.h" />
+    <ClInclude Include="System\Testing.h" />
+    <ClInclude Include="System\Time.h" />
     <ClInclude Include="WerehogStates.h" />
-    <ClInclude Include="XMLParser.h" />
+    <ClInclude Include="System\XMLParser.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include="packages.config" />

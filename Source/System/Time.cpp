@@ -102,7 +102,7 @@ HOOK(void*, __fastcall, UpdateDirectorNormal, 0x11B60B0, void* This, void* Edx, 
 	return originalUpdateDirectorNormal(This, Edx, context, elapsedTime);
 }
 
-void Time::Install()
+void Time::registerPatches()
 {
 	INSTALL_HOOK(UpdateDirectorSimple);
 	INSTALL_HOOK(UpdateDirectorNormal);
