@@ -54,14 +54,9 @@
 #include "System\ArchiveTreePatcher.h"
 #include "System\EvilConfiguration.h"
 
-//EvilStates
 #include "WerehogStates.h"
-#include "CameraMotionForBlueBlur.h"	
+#include "CameraMotionForBlueBlur.h"	/*
 #include "EvilStateMachine\Posture\EvilPostureIntro.h"
 #include "EvilStateMachine\Posture\EvilStateAttackPosture_byList.h"
 #include "EvilStateMachine\State\EvilStateAttackAction_byList.h"
-#include "EnemyBase.h"	
-#include "CStateArmSwing.h"
-#include "EvilSonic.h"
-
-#include "System\ClassicPluginExtensions.h"	
+#include "EvilStateMachine\State\EvilStateArmSwing.h"*/

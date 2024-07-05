@@ -186,7 +186,6 @@
     <ClCompile Include="Configuration.cpp" />
     <ClCompile Include="System\CustomAnimationManager.cpp" />
     <ClCompile Include="EnemyBase.cpp" />
-    <ClCompile Include="EvilSonicStateAttackAction_ByList.cpp" />
     <ClCompile Include="Mod.cpp" />
     <ClCompile Include="Pch.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Create</PrecompiledHeader>
@@ -215,7 +214,7 @@
     <ClInclude Include="System\ClassicPluginExtensions.h" />
     <ClInclude Include="Configuration.h" />
     <ClInclude Include="System\ConversionAPI.h" />
-    <ClInclude Include="CStateArmSwing.h" />
+    <ClInclude Include="EvilStateMachine\State\EvilStateArmSwing.h" />
     <ClInclude Include="System\CustomAnimationManager.h" />
     <ClInclude Include="DllMain.cpp" />
     <ClInclude Include="EnemyBase.h" />

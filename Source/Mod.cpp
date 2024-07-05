@@ -1,3 +1,7 @@
+#include "EnemyBase.h"
+#include "EvilSonic.h"
+#include "System/ClassicPluginExtensions.h"
+
 extern "C" __declspec(dllexport) void Init(ModInfo * modInfo)
 {
 #if _DEBUG

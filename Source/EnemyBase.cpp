@@ -1,3 +1,5 @@
+#include "EnemyBase.h"
+
 struct EnemyList
 {
 	std::unordered_map<Sonic::CGameObject3D*, float> enemyMap;

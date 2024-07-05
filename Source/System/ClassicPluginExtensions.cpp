@@ -1,3 +1,8 @@
+#include "ClassicPluginExtensions.h"
+#include "..\EvilStateMachine\Posture\EvilPostureIntro.h"
+#include "..\EvilStateMachine\Posture\EvilStateAttackPosture_byList.h"
+#include "..\EvilStateMachine\State\EvilStateAttackAction_byList.h"
+#include "..\EvilStateMachine\State\EvilStateArmSwing.h"
 bool m_PlayedCameraIntro;
 HOOK(int, __fastcall, ProcMsgRestart, 0xE76810, int* This, void* Edx, int* a2)
 {
@@ -12,7 +17,7 @@ HOOK(char, __stdcall, SetupPlayerStageIntro, 0xDFCE30, void* StateCrouching)
 		//*((DWORD*)a2 + 1329) = 2;
 		if (!m_PlayedCameraIntro)
 		{
-			Sonic::Player::CPlayerSpeedContext::GetInstance()->m_pPlayer->m_PostureStateMachine.ChangeState<CStartWerehogPosture>();
+			Sonic::Player::CPlayerSpeedContext::GetInstance()->m_pPlayer->m_PostureStateMachine.ChangeState<Evil::CStartWerehogPosture>();
 			m_PlayedCameraIntro = true;
 		}
 		return 1;
@@ -28,12 +33,12 @@ void RegisterCustomStates(Sonic::Player::CPlayerSpeedContext* context)
 	if (!added)
 	{
 		//Postures
-		context->m_pPlayer->m_PostureStateMachine.RegisterStateFactory<CStartWerehogPosture>();
-		context->m_pPlayer->m_PostureStateMachine.RegisterStateFactory<CStateAttackAction_byList_Posture>();
+		context->m_pPlayer->m_PostureStateMachine.RegisterStateFactory<Evil::CStartWerehogPosture>();
+		context->m_pPlayer->m_PostureStateMachine.RegisterStateFactory<Evil::CStateAttackAction_byList_Posture>();
 
 		//States
-		context->m_pPlayer->m_StateMachine.RegisterStateFactory<CStateAttackAction_byList>();
-		context->m_pPlayer->m_StateMachine.RegisterStateFactory<CStateArmSwing>();
+		context->m_pPlayer->m_StateMachine.RegisterStateFactory<Evil::CStateAttackAction_byList>();
+		context->m_pPlayer->m_StateMachine.RegisterStateFactory<Evil::CStateArmSwing>();
 		//added = true;
 	}
 }

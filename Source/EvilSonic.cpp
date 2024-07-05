@@ -1,4 +1,8 @@
 
+#include "EvilSonic.h"
+
+#include "EvilStateMachine/State/EvilStateArmSwing.h"
+#include "EvilStateMachine/State/EvilStateAttackAction_byList.h"
 using namespace hh::math;
 using namespace Sonic;
 
@@ -48,7 +52,7 @@ bool cameraAnimTempExecuted = false;
 //find a better way please
 bool init = false;
 boost::shared_ptr<Sonic::CGameObject3D> collision1;
-Hedgehog::math::CVector CStateArmSwing::target;
+Hedgehog::math::CVector Evil::CStateArmSwing::target;
 WerehogState currentState;
 
 
@@ -366,7 +370,7 @@ void ExecuteAttackCommand(std::string attack, int attackIndex, bool starter = fa
 		}
 	}
 	playerContext->m_Velocity = CVector(0, 0, 0);
-	playerContext->m_pPlayer->m_StateMachine.ChangeState<CStateAttackAction_byList>();
+	playerContext->m_pPlayer->m_StateMachine.ChangeState<Evil::CStateAttackAction_byList>();
 	AddImpulse(((playerContext->m_spMatrixNode->m_Transform.m_Rotation * Eigen::Vector3f::UnitZ()) * ((EvilGlobal::GetMotionFromName(attack).MotionMoveSpeedRatio) * 10)) * 100, true);
 	sound.reset();
 	lastMusicCue = resourcelist[resourceIndex].Params.Cue;
@@ -1059,7 +1063,7 @@ void EvilSonic::registerPatches()
 	//WRITE_MEMORY(0xD00E6F, uint8_t, 0xEB);
 	//INSTALL_HOOK(XButtonInput);
 	//INSTALL_HOOK(CSonicSetMaxSpeedBasis);
-	//INSTALL_HOOK(sub_BE0790);
+	//INSTALL_HOOK(sub_BE0790);/
 	//INSTALL_HOOK(NormalDamageDeadAfter);
 	//INSTALL_HOOK(NormalDamageDeadUpdate);
 	//INSTALL_HOOK(CSonicStateWalk_Update);
