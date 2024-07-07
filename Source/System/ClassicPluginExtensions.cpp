@@ -1,8 +1,12 @@
 #include "ClassicPluginExtensions.h"
+
 #include "..\EvilStateMachine\Posture\EvilPostureIntro.h"
 #include "..\EvilStateMachine\Posture\EvilStateAttackPosture_byList.h"
 #include "..\EvilStateMachine\State\EvilStateAttackAction_byList.h"
 #include "..\EvilStateMachine\State\EvilStateArmSwing.h"
+#include "..\EvilStateMachine\State\EvilStateRunningJump.h"
+#include "..\EvilStateMachine\State\EvilStateDamageNormal.h"
+
 bool m_PlayedCameraIntro;
 HOOK(int, __fastcall, ProcMsgRestart, 0xE76810, int* This, void* Edx, int* a2)
 {
@@ -39,6 +43,8 @@ void RegisterCustomStates(Sonic::Player::CPlayerSpeedContext* context)
 		//States
 		context->m_pPlayer->m_StateMachine.RegisterStateFactory<Evil::CStateAttackAction_byList>();
 		context->m_pPlayer->m_StateMachine.RegisterStateFactory<Evil::CStateArmSwing>();
+		context->m_pPlayer->m_StateMachine.RegisterStateFactory<Evil::CStateRunningJump>();
+		context->m_pPlayer->m_StateMachine.RegisterStateFactory<Evil::CStateDamageNormal>();
 		//added = true;
 	}
 }

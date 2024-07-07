@@ -1,9 +1,9 @@
 #pragma once
 enum AttackType {
-Straight,
-Hook,
-Aerial,
-Special
+	Straight,
+	Hook,
+	Aerial,
+	Special
 };
 enum MoveType {
 	Default,
@@ -26,9 +26,6 @@ struct WerehogAttack
 	bool dontJump;
 	MoveType moveType;
 };
-
-
-
 class EvilSonic
 {
 

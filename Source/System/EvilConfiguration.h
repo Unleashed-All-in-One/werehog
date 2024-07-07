@@ -21,6 +21,11 @@ public:
 	static std::string lastAttackName;
 	static boost::shared_ptr<Sonic::CGameObject3D> shockwaveGameObject;
 	static EvilParameters* parameters;
+	static bool canExecuteAttacks;
+	static bool disableAnimations;
+	static bool allowFreemoveArmLeft, allowFreemoveArmRight;
+	static Hedgehog::Math::CVector freemovePositionLeft;
+	static Hedgehog::Math::CVector freemovePositionRight;
 
 	static Motion GetMotionFromName(std::string in_Name);
 	static WerehogAttackNew GetAttackFromName();

@@ -53,8 +53,9 @@
 #include "System\XMLParser.h"
 #include "System\ArchiveTreePatcher.h"
 #include "System\EvilConfiguration.h"
+#include "TemporaryUntilBB\CeramicSA_AnimatorPose.h"
 
-#include "WerehogStates.h"
+#include "AttackHitbox.h"
 #include "CameraMotionForBlueBlur.h"	/*
 #include "EvilStateMachine\Posture\EvilPostureIntro.h"
 #include "EvilStateMachine\Posture\EvilStateAttackPosture_byList.h"

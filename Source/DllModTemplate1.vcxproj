@@ -202,14 +202,16 @@
     <ClCompile Include="System\Temporary.cpp" />
     <ClCompile Include="System\Testing.cpp" />
     <ClCompile Include="System\Time.cpp" />
-    <ClCompile Include="WerehogStates.cpp" />
     <ClCompile Include="System\XMLParser.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="CameraMotionForBlueBlur.h" />
     <ClInclude Include="EvilStateMachine\Posture\EvilPostureIntro.h" />
+    <ClInclude Include="EvilStateMachine\Posture\EvilPostureRunningJump.h" />
     <ClInclude Include="EvilStateMachine\State\EvilStateAttackAction_byList.h" />
     <ClInclude Include="EvilStateMachine\Posture\EvilStateAttackPosture_byList.h" />
+    <ClInclude Include="EvilStateMachine\State\EvilStateDamageNormal.h" />
+    <ClInclude Include="EvilStateMachine\State\EvilStateRunningJump.h" />
     <ClInclude Include="System\ArchiveTreePatcher.h" />
     <ClInclude Include="System\ClassicPluginExtensions.h" />
     <ClInclude Include="Configuration.h" />
@@ -224,11 +226,16 @@
     <ClInclude Include="System\Temporary.h" />
     <ClInclude Include="System\Testing.h" />
     <ClInclude Include="System\Time.h" />
-    <ClInclude Include="WerehogStates.h" />
+    <ClInclude Include="AttackHitbox.h" />
     <ClInclude Include="System\XMLParser.h" />
+    <ClInclude Include="TemporaryUntilBB\CeramicSA_AnimatorPose.h" />
+    <ClInclude Include="TemporaryUntilBB\CeramicSA_hk2010.h" />
+    <ClInclude Include="TemporaryUntilBB\CeramicSA_MiragePose.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include="packages.config" />
+    <None Include="TemporaryUntilBB\CeramicSA_AnimatorPose.inl" />
+    <None Include="TemporaryUntilBB\CeramicSA_MiragePose.inl" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

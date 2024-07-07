@@ -1,8 +1,12 @@
 
 #include "EvilSonic.h"
 
+#include "EvilStateMachine/State/EvilStateRunningJump.h"
 #include "EvilStateMachine/State/EvilStateArmSwing.h"
 #include "EvilStateMachine/State/EvilStateAttackAction_byList.h"
+#include "EvilStateMachine/State/EvilStateDamageNormal.h"
+
+
 using namespace hh::math;
 using namespace Sonic;
 
@@ -517,7 +521,8 @@ HOOK(int, __fastcall, CSonicStateHomingAttack_Begin, 0x01232040, CQuaternion* Th
 	}
 	return originalCSonicStateHomingAttack_Begin(This);
 }
-HOOK(void, __fastcall, CSonicClassicMsgDamageProcessor, 0xDEA340, Sonic::Player::CSonic* This, void* _, hh::fnd::Message& in_rMsg)
+
+HOOK(void, __fastcall, CSonicClassicMsgDamageProcessor, 0xDEA340, Sonic::Player::CSonic* This, void* _, Sonic::Message::MsgDamage& in_rMsg)
 {
 	if (timerDamage >= EvilGlobal::parameters->timerDamageMax)
 	{
@@ -525,10 +530,18 @@ HOOK(void, __fastcall, CSonicClassicMsgDamageProcessor, 0xDEA340, Sonic::Player:
 		if (EvilGlobal::parameters->lifeCurrentAmount > 0)
 		{
 			timerDamage = 0;
-			PlayAnim("Evilsonic_damageMB");
+			if(in_rMsg.m_DamageType == 1)
+			{
+				Sonic::Player::CPlayerSpeedContext::GetInstance()->ChangeState<Evil::CStateDamageNormal>();
+			}
+			else
+			{
+				//Sonic::Player::CPlayerSpeedContext::GetInstance()->ChangeState<Evil::CStateDamageFly>();
+			}
 		}
 		else
 		{
+			//Sonic::Player::CPlayerSpeedContext::GetInstance()->ChangeState<Evil::CStateDamageDead>();
 			CONTEXT->m_RingCount = 0;
 			originalCSonicClassicMsgDamageProcessor(This, _, in_rMsg);
 		}
@@ -582,6 +595,7 @@ HOOK(void, __fastcall, CPlayerSpeedContext_CStateJumpBall_Start, 0x01235250, int
 			if (currentState == WerehogState::Dash)
 			{
 				PlayAnim("Evilsonic_dash_jumpS");
+				Sonic::Player::CPlayerSpeedContext::GetInstance()->m_pPlayer->m_StateMachine.ChangeState<Evil::CStateRunningJump>();
 			}
 			else
 				PlayAnim("JumpEvil1");
@@ -697,12 +711,16 @@ HOOK(void, __fastcall, CHudSonicStageUpdateParallel, 0xDDABA0, Sonic::CGameObjec
 		*(uint32_t*)((uint32_t)*CONTEXT->ms_pInstance + 0x680) = 1;
 		CONTEXT->m_ChaosEnergy = min(CONTEXT->m_ChaosEnergy, 100);
 
-
+		//Set rotational parameters every frame since they sometimes reset, maybe find a better way to do this
 		//playerContext->m_JumpThrust = CVector(playerContext->m_JumpThrust.x(), 1, playerContext->m_JumpThrust.z());
 		playerContext->m_spParameter->m_scpNode->m_ValueMap[Sonic::Player::ePlayerSpeedParameter_BoostEnableChaosEnergy] = 1000.0f;
 		float rotForce = 70.0f;
 		if (currentState == WerehogState::Dash)
+		{
 			rotForce = 30.0f;
+			playerContext->m_WorldInput /= 10;
+			
+		}
 		else if (currentState == WerehogState::Guard)
 			rotForce = 0;
 		playerContext->m_spParameter->m_scpNode->m_ValueMap[Sonic::Player::ePlayerSpeedParameter_RotationForce0] = rotForce;
@@ -719,31 +737,21 @@ HOOK(void, __fastcall, CHudSonicStageUpdateParallel, 0xDDABA0, Sonic::CGameObjec
 		isGrounded = playerContext->m_Grounded;
 		/*sonic->m_spParameter->m_scpNode->m_ValueMap.erase(Sonic::Player::ePlayerSpeedParameter_BoostEnableChaosEnergy);
 		sonic->m_spParameter->m_scpNode->m_ValueMap.erase(Sonic::Player::ePlayerSpeedParameter_AirBoostEnableChaosEnergy);*/
+
+		//hideous
+		DebugDrawText::log("### WEREHOG INFO ### ", 0, 0, DebugDrawText::Color(1, 0, 1, 1));
+		DebugDrawText::log(std::format("Timer Combo: {0}", timerCombo).c_str(), 0,1);
+		DebugDrawText::log(std::format("Timer Combo Max: {0}", EvilGlobal::parameters->timerComboMax).c_str(), 0,2);
+		DebugDrawText::log(std::format("Timer Attack: {0}", timerAttack).c_str(), 0,3);
+		DebugDrawText::log(std::format("Timer Attack Max: {0}", EvilGlobal::parameters->timerAttackMax).c_str(), 0,4);
+		DebugDrawText::log(std::format("Combo progress: {0}", comboProgress).c_str(), 0,5);
+		DebugDrawText::log(std::format("Boost amount: {0}", CONTEXT->m_ChaosEnergy).c_str(), 0,6);
+		DebugDrawText::log(std::format("HP: {0}", EvilGlobal::parameters->lifeCurrentAmount).c_str(), 0,7);
+		DebugDrawText::log(std::format("Attack Anim: {0}", EvilGlobal::lastAttackName).c_str(), 0,8);
+		DebugDrawText::log(std::format("Timer Combo: {0}", timerCombo).c_str(), 0,9);
+		DebugDrawText::log(std::format("Posture: {0}", CONTEXT->m_pPlayer->m_PostureStateMachine.GetCurrentState()->m_Name.c_str()).c_str(), 0,10);
+		DebugDrawText::log("-----------------------------------------------", 0, 11, DebugDrawText::Color(1, 0, 1, 1));
 		
-		DebugDrawText::log(std::format(
-			"### WEREHOG INFO ###"
-			"Timer Combo: {0}\n"
-			"Timer Combo Max: {1}\n"
-			"Timer Attack: {2}\n"
-			"Timer Attack Max: {3}\n"
-			"Combo progress: {4}\n"
-			"Boost {5}\n"
-			"Tap {6}\n"
-			"\n"
-			"Life {7}\n"
-			"PlayingAttack {8}\n"
-			"AttackAnim: {9}\n",
-			timerCombo,
-			EvilGlobal::parameters->timerComboMax,
-			timerAttack,
-			EvilGlobal::parameters->timerAttackMax,
-			comboProgress,
-			CONTEXT->m_ChaosEnergy,
-			(int)lastTap,
-			EvilGlobal::parameters->lifeCurrentAmount,
-			playingAttack,
-			EvilGlobal::lastAttackName
-		).c_str(), 0);
 
 		auto inputPtr = &Sonic::CInputState::GetInstance()->m_PadStates[Sonic::CInputState::GetInstance()->m_CurrentPadStateIndex];
 		if (inputPtr->IsDown(eKeyState_X) || inputPtr->IsDown(eKeyState_Y) || inputPtr->IsDown(eKeyState_A))
@@ -843,73 +851,78 @@ HOOK(void, __fastcall, CHudSonicStageUpdateParallel, 0xDDABA0, Sonic::CGameObjec
 		}
 		else
 		{
-			if (timerAttack > EvilGlobal::parameters->timerAttackMax && playingAttack)
+			//Attack state prepare logic
+			if(EvilGlobal::canExecuteAttacks)
 			{
-				playingAttack = false;
-				comboProgress++;
-			}
-
-			if ((timerCombo > 0.1f && comboProgress > 0 || comboProgress == 0) && (timerAttack > EvilGlobal::parameters->timerAttackMax) && currentButtonChain.size() > comboProgress)
-			{
-				if (currentButtonChain[currentButtonChain.size() - 1] == eKeyState_X || currentButtonChain[currentButtonChain.size() - 1] == eKeyState_Y || currentButtonChain[currentButtonChain.size() - 1] == eKeyState_A)
+				if (timerAttack > EvilGlobal::parameters->timerAttackMax && playingAttack)
 				{
-
-					if (comboProgress == 0)
-					{
-						std::string attackName = "Start_";
-						if (currentState == WerehogState::Dash)
-						{
-							if (isGrounded)
-								attackName += "Dash_Run_";
-							else
-								attackName += "Dash_";
-
-						}
-						if (currentState == WerehogState::Guard)
-							attackName += "Guard_";
-						if (!isGrounded)
-							attackName += "Air_";
-						if (!isGrounded || currentState == WerehogState::Dash)
-						{
-							switch (currentButtonChain[comboProgress])
-							{
-							case eKeyState_X:
-							{
-								attackName += "XButtonDown";
-								break;
-							}
-							case eKeyState_Y:
-							{
-								attackName += "YButtonDown";
-								break;
-							}
-							}
-						}
-						else
-						{
-							switch (currentButtonChain[comboProgress])
-							{
-							case eKeyState_X:
-							{
-								attackName += "XButtonUP";
-								break;
-							}
-							case eKeyState_Y:
-							{
-								attackName += "YButtonUP";
-								break;
-							}
-							}
-						}
-						SearchThenExecute(attackName, true, eKeyState_None);
-					}
-
-					if (comboProgress >= 1)
-					{
-						SearchThenExecute(EvilGlobal::lastAttackName, false, currentButtonChain[comboProgress]);
-					}
-
+					playingAttack = false;
+					comboProgress++;
 				}
+
+				if ((timerCombo > 0.1f && comboProgress > 0 || comboProgress == 0) && (timerAttack > EvilGlobal::parameters->timerAttackMax) && currentButtonChain.size() > comboProgress)
+				{
+					if (currentButtonChain[currentButtonChain.size() - 1] == eKeyState_X || currentButtonChain[currentButtonChain.size() - 1] == eKeyState_Y || currentButtonChain[currentButtonChain.size() - 1] == eKeyState_A)
+					{
+
+						if (comboProgress == 0)
+						{
+							std::string attackName = "Start_";
+							if (currentState == WerehogState::Dash)
+							{
+								if (isGrounded)
+									attackName += "Dash_Run_";
+								else
+									attackName += "Dash_";
+
+							}
+							if (currentState == WerehogState::Guard)
+								attackName += "Guard_";
+							if (!isGrounded)
+								attackName += "Air_";
+							if (!isGrounded || currentState == WerehogState::Dash)
+							{
+								switch (currentButtonChain[comboProgress])
+								{
+								case eKeyState_X:
+								{
+									attackName += "XButtonDown";
+									break;
+								}
+								case eKeyState_Y:
+								{
+									attackName += "YButtonDown";
+									break;
+								}
+								}
+							}
+							else
+							{
+								switch (currentButtonChain[comboProgress])
+								{
+								case eKeyState_X:
+								{
+									attackName += "XButtonUP";
+									break;
+								}
+								case eKeyState_Y:
+								{
+									attackName += "YButtonUP";
+									break;
+								}
+								}
+							}
+							SearchThenExecute(attackName, true, eKeyState_None);
+						}
+
+						if (comboProgress >= 1)
+						{
+							SearchThenExecute(EvilGlobal::lastAttackName, false, currentButtonChain[comboProgress]);
+						}
+
+					}
+				}
+
 			}
 		}
 		DebugDrawText::log((std::string("Jump count: ") + std::to_string(jumpcount)).c_str(), 0);
@@ -1030,6 +1043,81 @@ HOOK(void, __fastcall, CSonicClassicStateMoveStop_Update, 0x11146c0, void* This,
 {
 	Sonic::Player::CPlayerSpeedContext::GetInstance()->m_pPlayer->m_StateMachine.ChangeState("Walk");
 }
+HOOK(void, __fastcall, _CAnimationPose_SampleAnimation, 0x6CC950, Ceramic::Animation::CAnimationPose* This)
+{
+	original_CAnimationPose_SampleAnimation(This);
+
+	ProceduralData* procData = ProceduralData::Get(This);
+	if (procData->UpdateProcedural == nullptr || procData->m_pObject == nullptr)
+		return;
+
+	procData->UpdateProcedural(This, procData->m_pObject);
+}
+void ProceduralData::SetUpdateFunction(void* functionPointer)
+{
+	UpdateProcedural = (FPtrUpdateProcedural)functionPointer;
+}
+ProceduralData* ProceduralData::Get(Ceramic::Animation::CAnimationPose* pose)
+{
+	return &reinterpret_cast<CAnimationPose_Alternate*>(pose)->m_pMap->procData;
+}
+int boneIndexTest = 50;
+void HeadTurnClassic(Ceramic::Animation::CAnimationPose* pose, Sonic::Player::CPlayerSpeed* player)
+{
+	using namespace hh::math;
+
+	auto context = player->GetContext();
+
+	auto inputPtr = &Sonic::CInputState::GetInstance()->m_PadStates[Sonic::CInputState::GetInstance()->m_CurrentPadStateIndex];
+	
+	enum class BoneIndex
+	{
+		Shoulder_L = 60,
+		Hand_L = 72,
+		Shoulder_R = 102,
+	};
+
+	//////////////
+	// Code start
+	//////////////
+	//-----------------------------------------
+
+	// We don't want to do anything if we're not in the right state.
+	const auto state = player->m_StateMachine.GetCurrentState().get();
+	if (!state)
+		return;
+	if(EvilGlobal::allowFreemoveArmLeft)
+	{
+		Ceramic::Animation::hkQsTransform* tBone = pose->m_pAnimData->m_TransformArray.GetIndex(BoneIndex::Shoulder_L);
+		tBone->m_Position = EvilGlobal::freemovePositionLeft;
+	}
+	if (EvilGlobal::allowFreemoveArmRight)
+	{
+		Ceramic::Animation::hkQsTransform* tBone = pose->m_pAnimData->m_TransformArray.GetIndex(BoneIndex::Shoulder_R);
+		tBone->m_Position = EvilGlobal::freemovePositionRight;
+	}
+	//DebugDrawText::log(std::format("BONE INDEX: {0}", boneIndexTest).c_str(), 0, 100);
+	//
+	////// RArm
+	//Ceramic::Animation::hkQsTransform* tRArm = pose->m_pAnimData->m_TransformArray.GetIndex(boneIndexTest);
+	//tRArm->m_Position = CVector(10,10,10);
+	//if (inputPtr->IsTapped(Sonic::eKeyState_DpadRight))
+	//{
+	//	boneIndexTest++;
+	//}
+}
+void CAnimationPoseInit_AddCallbackC(app::Player::CPlayerSpeed* player)
+{
+	auto test = (Ceramic::Animation::CAnimationPose*)player->m_spAnimationPose.get();
+	auto procData = &reinterpret_cast<CAnimationPose_Alternate*>(test)->m_pMap->procData;
+	procData->m_pObject = player;
+	procData->SetUpdateFunction(HeadTurnClassic);
+}
+HOOK(void, __fastcall, _SonicInitializeRenderables_Classic, 0x00DE93A0, app::Player::CPlayerSpeed* This, void*, void* a2, int a3)
+{
+	original_SonicInitializeRenderables_Classic(This, nullptr, a2, a3);
+	CAnimationPoseInit_AddCallbackC(This);
+}
 void registerAnimations()
 {
 	//Register some of the basic non-attack anims
@@ -1054,8 +1142,34 @@ void registerAnimations()
 	CustomAnimationManager::RegisterAnimation("Evilsonic_runE", "evilsonic_runE");
 	CustomAnimationManager::RegisterAnimation("Evilsonic_dash_jumpS", "evilsonic_dash_jumpS");
 }
+//void __thiscall Sonic::Player::SetBoneMatricies(CPlayer *this, float deltaTime)
+HOOK(void, __fastcall, ClassicSonicAnimationUpdate, 0x00E79DA0, void* This, void* Edx, float deltaTime)
+{
+	if (!EvilGlobal::disableAnimations)
+		originalClassicSonicAnimationUpdate(This, Edx, deltaTime);
+}
+void CAnimationPoseInit_Ctor(Ceramic::Animation::CAnimationPose* pose)
+{
+	ProceduralData* procData = ProceduralData::Get(pose);
+	procData->m_pObject = nullptr;
+	procData->UpdateProcedural = nullptr;
+
+}
+HOOK(void*, __fastcall, _ConstructCAnimationPose_Common, 0x006CB140, Ceramic::Animation::CAnimationPose* This, void*, void* a2, void* a3)
+{
+	void* result = original_ConstructCAnimationPose_Common(This, nullptr, a2, a3);
+	CAnimationPoseInit_Ctor(This);
+	return result;
+}
+HOOK(void*, __fastcall, _ConstructCAnimationPose_Msn, 0x006CA910, Ceramic::Animation::CAnimationPose* This, void*, void* a2, void* a3, void* a4)
+{
+	void* result = original_ConstructCAnimationPose_Msn(This, nullptr, a2, a3, a4);
+	CAnimationPoseInit_Ctor(This);
+	return result;
+}
 void EvilSonic::registerPatches()
 {
+	EvilGlobal::canExecuteAttacks = true;
 	registerAnimations();
 	//CustomAnimationManager::RegisterAnimation("StartEventDash", "evilsonic_runE");
 	//WRITE_JUMP(0x00DC6713, TestJump);
@@ -1068,6 +1182,12 @@ void EvilSonic::registerPatches()
 	//INSTALL_HOOK(NormalDamageDeadUpdate);
 	//INSTALL_HOOK(CSonicStateWalk_Update);
 
+	WRITE_MEMORY(0x006CB29D, uint8_t, sizeof(CAnimationPose_Alternate::Map));
+	INSTALL_HOOK(_ConstructCAnimationPose_Common);
+	INSTALL_HOOK(_ConstructCAnimationPose_Msn);
+	INSTALL_HOOK(_SonicInitializeRenderables_Classic);
+	INSTALL_HOOK(_CAnimationPose_SampleAnimation);
+	//INSTALL_HOOK(ClassicSonicAnimationUpdate);
 	INSTALL_HOOK(Evil_InitializeParametersForEditor);
 	INSTALL_HOOK(CHudSonicStageUpdateParallel);
 	INSTALL_HOOK(CPlayerSpeedContext_AddCallback);

@@ -1,5 +1,12 @@
 #pragma once
+#include "CameraMotionForBlueBlur.h"
 
+struct MsgIsPlayerDamaging : hh::fnd::MessageTypeGet
+{
+	HH_FND_MSG_MAKE_TYPE(0x0167FBDC);
+public:
+	bool m_Field10;
+};
 using namespace hh::math;
 class CAttackHitbox : public Sonic::CGameObject3D
 {
@@ -36,18 +43,7 @@ public:
 	{
 		Sonic::CApplicationDocument::GetInstance()->AddMessageActor("GameObject", this);
 		pGameDocument->AddUpdateUnit("0", this);
-		//Uncomment for a debug sphere
-		//hh::mr::CMirageDatabaseWrapper wrapper(spDatabase.get());
-		//// This is a debug asset that has a broken material, so it will be pure red--but that's ok, cuz we can see it.
-		//const char* assetName = "BasicSphere";
-		//boost::shared_ptr<hh::mr::CModelData> spModelData = wrapper.GetModelData(assetName, 0);
-
-		//m_spRenderable = boost::make_shared<hh::mr::CSingleElement>(spModelData);
-		/*if (!spModelData)
-			return;*/
-
-			//m_spRenderable->BindMatrixNode(m_spMatrixNodeTransform);
-			//AddRenderable("Object", m_spRenderable, true);
+		
 
 		m_spMatrixNodeTransform->NotifyChanged();
 		m_spMatrixNodeTransform->m_Transform.SetPosition(CVector(0, 0, 0));
@@ -57,7 +53,8 @@ public:
 		m_spNodeEventCollision->NotifyChanged();
 		m_spNodeEventCollision->SetParent(m_spMatrixNodeTransform.get());
 		//27
-		AddEventCollision("Normal", shapeEventTrigger, *(int*)0x1E0AF28, false, m_spNodeEventCollision);
+		int col = Sonic::CollisionID({ Sonic::CollisionID::TypePlayerAttack }, { Sonic::CollisionID::TypeEnemy, Sonic::CollisionID::TypeLockon, Sonic::CollisionID::TypeEvent, Sonic::CollisionID::TypeEventTrigger, Sonic::CollisionID::TypeBreakable }).m_Data;
+		AddEventCollision("Normal", shapeEventTrigger,col , true, m_spNodeEventCollision);
 	}
 	void UpdateParallel(const Hedgehog::Universe::SUpdateInfo& updateInfo) override
 	{
@@ -71,15 +68,16 @@ public:
 	{
 		if (in_Flag)
 		{
+			if (std::strstr(in_rMsg.GetType(), "MsgIsPlayerDamaging") != nullptr)
+			{
+				((MsgIsPlayerDamaging&)in_rMsg).m_Field10 = true;
+				return true;
+			}
 			if (std::strstr(in_rMsg.GetType(), "MsgHitEventCollision") != nullptr)
 			{
 				auto vector1 = CVector(100, 100, 100);
-				auto out_msgDamage = boost::make_shared<Sonic::Message::MsgDamage>();
-				out_msgDamage->collisionMask = (int*)0x01E0BE24;
-				out_msgDamage->m_HitPosition1 = &vector1;
-				out_msgDamage->m_HitPosition2 = &vector1;
-				out_msgDamage->m_LaunchVelocity = Sonic::Player::CPlayerSpeedContext::GetInstance()->m_Velocity;
-				out_msgDamage->dword50 = true;
+				auto out_msgDamage = boost::make_shared<Sonic::Message::MsgDamage>(*(int*)0x01E0BE28, m_spMatrixNodeTransform->m_Transform.m_Position, Sonic::Player::CPlayerSpeedContext::GetInstance()->m_Velocity);
+				
 				SendMessage(in_rMsg.m_SenderActorID, out_msgDamage);
 				return true;
 			}

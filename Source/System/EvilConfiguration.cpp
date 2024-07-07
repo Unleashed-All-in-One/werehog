@@ -2,6 +2,11 @@ EvilParameters* EvilGlobal::parameters;
 std::string EvilGlobal::lastAttackName;
 boost::shared_ptr<Sonic::CGameObject3D> EvilGlobal::shockwaveGameObject;
 boost::shared_ptr<Sonic::CMotionCameraController> EvilGlobal::m_spMotionCameraController;
+bool EvilGlobal::canExecuteAttacks;
+bool EvilGlobal::disableAnimations;
+bool EvilGlobal::allowFreemoveArmLeft, EvilGlobal::allowFreemoveArmRight;
+Hedgehog::Math::CVector EvilGlobal::freemovePositionLeft;
+Hedgehog::Math::CVector EvilGlobal::freemovePositionRight;
 
 Motion EvilGlobal::GetMotionFromName(std::string in_Name)
 {
@@ -33,5 +38,6 @@ void EvilGlobal::initializeValues()
 	EvilParameters* params = new EvilParameters();
 	params->attackVelocityDivider = 1.5f;
 	params->lifeMaxAmount = 15;
+	params->timerDamageMax = 2;
 	parameters = params;
 }
