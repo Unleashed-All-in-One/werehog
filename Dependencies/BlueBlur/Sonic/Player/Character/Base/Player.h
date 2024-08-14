@@ -25,7 +25,8 @@ namespace Sonic::Player
         Hedgehog::Universe::TStateMachine<CPlayerContext> m_PostureStateMachine; // 0x124 - size 0x60, || end 0x184
         BB_INSERT_PADDING(0xB0);
         boost::shared_ptr<Hedgehog::Mirage::CSingleElement> m_spCharacterModel;
-        BB_INSERT_PADDING(0x54);
+        boost::shared_ptr<Hedgehog::Animation::CAnimationPose> m_spAnimationPose;
+        BB_INSERT_PADDING(0x4C);
     };
 
     BB_ASSERT_OFFSETOF(CPlayer, m_spContext, 0xAC);

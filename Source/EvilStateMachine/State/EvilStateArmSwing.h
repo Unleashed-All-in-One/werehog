@@ -57,7 +57,7 @@ namespace Evil
 		}
 		void LeaveState()
 		{
-			EvilGlobal::disableAnimations = false;
+			EvilGlobal::allowFreemoveArmRight = false;
 		}
 	};
 }

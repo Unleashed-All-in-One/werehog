@@ -693,6 +693,8 @@ HOOK(void, __fastcall, CHudSonicStageUpdateParallel, 0xDDABA0, Sonic::CGameObjec
 			tempTimerWalk = 0;
 		const auto spAnimInfo = boost::make_shared<Sonic::Message::MsgGetAnimationInfo>();
 		playerContext->m_pPlayer->SendMessageImm(playerContext->m_pPlayer->m_ActorID, spAnimInfo);
+		if (playerContext->m_pPlayer->m_StateMachine.GetCurrentState() == nullptr)
+			return;
 		Hedgehog::Base::CSharedString stateCheck = playerContext->m_pPlayer->m_StateMachine.GetCurrentState()->GetStateName();
 		std::string stateCheckS(stateCheck.c_str());
 		//DebugDrawText::log((std::string("Current Player Anim: ") + std::string(spAnimInfo->m_Name.c_str())).c_str(), 0);
@@ -1061,7 +1063,54 @@ ProceduralData* ProceduralData::Get(Ceramic::Animation::CAnimationPose* pose)
 {
 	return &reinterpret_cast<CAnimationPose_Alternate*>(pose)->m_pMap->procData;
 }
+Eigen::Quaternionf CalculateRotation(const Eigen::Vector3f& from, const Eigen::Vector3f& to)
+{
+	Eigen::Vector3f direction = (to - from).normalized();
+	Eigen::Vector3f forward(0.0f, 0.0f, 1.0f); // Assuming the forward direction is along the Z-axis
+
+	Eigen::Quaternionf rotation = Eigen::Quaternionf::FromTwoVectors(forward, direction);
+	return rotation;
+}
+CQuaternion euler2Quaternion(const float roll, const float pitch, const float yaw)
+{
+	Eigen::AngleAxisf rollAngle((roll * PI) / 180.0f, Eigen::Vector3f::UnitZ());
+	Eigen::AngleAxisf yawAngle((yaw * PI) / 180.0f, Eigen::Vector3f::UnitY());
+	Eigen::AngleAxisf pitchAngle((pitch * PI) / 180.0f, Eigen::Vector3f::UnitX());
+
+	Eigen::Quaternionf q = rollAngle * yawAngle * pitchAngle;
+	return q;
+}
+float x;
 int boneIndexTest = 50;
+
+inline Eigen::Vector3f PointToLocalSpace(const Eigen::Vector3f& point,
+	const Eigen::Quaternionf& rotation,
+	const Eigen::Vector3f& position)
+{
+	// Get the world space vector from the origin to the point.
+	Eigen::Vector3f offset = point - position;
+
+	// Rotate this offset by the inverse of the rotation to get it into local space.
+	Eigen::Vector3f local = rotation.inverse() * offset;
+
+	return local;
+}
+Eigen::Vector3f WorldToLocalScale(const Eigen::Affine3f& worldMatrix,
+	const Eigen::Affine3f& localMatrix,
+	const Eigen::Vector3f& worldScale)
+{
+	// Calculate the inverse of the local matrix.
+	Eigen::Matrix4f inverseLocalMatrix = localMatrix.inverse().matrix();
+
+	// Transform the world scale vector to local space.
+	Eigen::Vector4f worldScaleHomogeneous(worldScale.x(), worldScale.y(), worldScale.z(), 0.0);
+	Eigen::Vector4f localScaleHomogeneous = inverseLocalMatrix * worldMatrix * worldScaleHomogeneous;
+
+	// Extract the scaling factors from the resulting vector.
+	Eigen::Vector3f localScale(localScaleHomogeneous.x(), localScaleHomogeneous.y(), localScaleHomogeneous.z());
+
+	return localScale;
+}
 void HeadTurnClassic(Ceramic::Animation::CAnimationPose* pose, Sonic::Player::CPlayerSpeed* player)
 {
 	using namespace hh::math;
@@ -1087,15 +1136,86 @@ void HeadTurnClassic(Ceramic::Animation::CAnimationPose* pose, Sonic::Player::CP
 	if (!state)
 		return;
 	if(EvilGlobal::allowFreemoveArmLeft)
-	{
+	{	
 		Ceramic::Animation::hkQsTransform* tBone = pose->m_pAnimData->m_TransformArray.GetIndex(BoneIndex::Shoulder_L);
-		tBone->m_Position = EvilGlobal::freemovePositionLeft;
+		
+		tBone->m_Position = context->m_spMatrixNode->m_Transform.m_Position - EvilGlobal::freemovePositionLeft;
 	}
-	if (EvilGlobal::allowFreemoveArmRight)
+	x += inputPtr->RightStickHorizontal;
+	DebugDrawText::log(std::format("ROTATION TEST: {0}", x).c_str(), 0);
+	//if (EvilGlobal::allowFreemoveArmRight)
+	//{
+		//Ceramic::Animation::hkQsTransform* tBone = pose->m_pAnimData->m_TransformArray.GetIndex((int)BoneIndex::Shoulder_R);
+		//
+		//
+		//auto quat = CalculateRotation(context->m_spMatrixNode->m_Transform.m_Position, EvilGlobal::freemovePositionRight);
+		//quat.vec() += euler2Quaternion(x, 0, 0).vec();
+		//quat.w() += euler2Quaternion(x, 0, 0).w();
+		//tBone->m_Rotation = CQuaternion::Identity();
+		//pose->m_pAnimData->m_TransformArray.GetIndex((int)BoneIndex::Shoulder_R - 4)->m_Rotation = euler2Quaternion(0, x, 0);
+		//pose->m_pAnimData->m_TransformArray.GetIndex((int)BoneIndex::Shoulder_R - 3)->m_Rotation = CQuaternion::Identity();
+		//pose->m_pAnimData->m_TransformArray.GetIndex((int)BoneIndex::Shoulder_R - 2)->m_Rotation = CQuaternion::Identity();
+		//pose->m_pAnimData->m_TransformArray.GetIndex((int)BoneIndex::Shoulder_R - 1)->m_Rotation = CQuaternion::Identity();
+		//for (int i = 0; i < 12; ++i)
+		//{			
+		//	Ceramic::Animation::hkQsTransform* tBoneS = pose->m_pAnimData->m_TransformArray.GetIndex((int)BoneIndex::Shoulder_R + i);
+		//	tBoneS->m_Position = increment;
+		//	tBoneS->m_Rotation = CQuaternion::Identity();
+		//	tBoneS->m_Scale = CVector(1, 1, 1);
+		//}
+		//
+		//pose->m_pAnimData->m_TransformArray.GetIndex((int)BoneIndex::Shoulder_R + 12)->m_Rotation = quat;
+		int startingPoint = -1;
+		auto increment = PointToLocalSpace(EvilGlobal::freemovePositionRight, context->m_spMatrixNode->m_Transform.m_Rotation, context->m_spMatrixNode->m_Transform.m_Position) / (11 + startingPoint);
+
+		pose->m_pAnimData->m_TransformArray.GetIndex((int)BoneIndex::Shoulder_R - startingPoint)->m_Rotation = CQuaternion::Identity();
+		pose->m_pAnimData->m_TransformArray.GetIndex((int)BoneIndex::Shoulder_R - startingPoint)->m_Scale = CVector(1,1,1);
+		WorldToLocalScale(context->m_pPlayer->m_spCharacterModel->GetNode("Shoulder_R")->m_WorldMatrix, context->m_pPlayer->m_spCharacterModel->GetNode("Shoulder_R")->m_LocalMatrix, CVector(1, 1, 1));
+	for (int i = 0; i < 11 + startingPoint; ++i)
 	{
-		Ceramic::Animation::hkQsTransform* tBone = pose->m_pAnimData->m_TransformArray.GetIndex(BoneIndex::Shoulder_R);
-		tBone->m_Position = EvilGlobal::freemovePositionRight;
+		Ceramic::Animation::hkQsTransform* tBoneS = pose->m_pAnimData->m_TransformArray.GetIndex((int)BoneIndex::Shoulder_R - startingPoint + i);
+		tBoneS->m_Rotation = CQuaternion::Identity();
+		tBoneS->m_Position = increment;
+		tBoneS->m_Scale = CVector(1, 1, 1);;
 	}
+		////auto ref = playerContext->m_pPlayer->m_spCharacterModel->GetNode("Reference");
+		//auto increment = (context->m_spMatrixNode->m_Transform.m_Position - EvilGlobal::freemovePositionRight) / 11;
+
+		//CVector subtracted;
+
+		//Ceramic::Animation::hkQsTransform* tBoneS = pose->m_pAnimData->m_TransformArray.GetIndex((int)BoneIndex::Shoulder_R);
+		//tBoneS->m_Position = (increment);
+		//subtracted = context->m_spMatrixNode->m_Transform.m_Position - (increment);
+		//for (size_t i = 1; i < 11; i++) //bones in arm
+		//{
+		//	Ceramic::Animation::hkQsTransform* tBone = pose->m_pAnimData->m_TransformArray.GetIndex((int)BoneIndex::Shoulder_R + i);			
+		//	tBone->m_Position = (increment * i);
+		//	subtracted = tBone->m_Position;
+		//	tBone->m_Rotation = CQuaternion(0, 0, 0, 1);
+		//}
+
+		//int currentBoneIndex = (int)BoneIndex::Shoulder_R;
+		//
+		//// Retrieve the initial position of the starting bone
+		//Ceramic::Animation::hkQsTransform* startBone = pose->m_pAnimData->m_TransformArray.GetIndex(currentBoneIndex);
+		//CVector startPosition = startBone->m_Position;
+		//
+		//// Calculate the target position for the last bone
+		//CVector targetPosition = context->m_spMatrixNode->m_Transform.m_Position - EvilGlobal::freemovePositionLeft;
+		//
+		//// Loop through the bones from startBoneIndex to startBoneIndex + numberOfBones - 1
+		//for (int i = 0; i < 11; ++i) {
+		//	currentBoneIndex = (int)BoneIndex::Shoulder_R + i;
+		//	Ceramic::Animation::hkQsTransform* tBone = pose->m_pAnimData->m_TransformArray.GetIndex(currentBoneIndex);
+		//
+		//	// Interpolate the position for the current bone
+		//	float t = static_cast<float>(i) / (11.0f - 1.0f);
+		//	tBone->m_Position = startPosition * (1.0f - t) + targetPosition * t;
+		//}
+
+		//context->m_spMatrixNode->m_Transform.m_Position - ;
+		//tBone->m_Position = context->m_spMatrixNode->m_Transform.m_Position - EvilGlobal::freemovePositionRight;
+	//}
 	//DebugDrawText::log(std::format("BONE INDEX: {0}", boneIndexTest).c_str(), 0, 100);
 	//
 	////// RArm
